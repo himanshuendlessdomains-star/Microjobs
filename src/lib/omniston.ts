@@ -3,7 +3,7 @@ import type { Quote, QuoteRequest, BuildTonSwapRequest, TonTransaction } from "@
 import type { SwapTokenInfo } from "./types";
 
 export const omniston = new Omniston({
-  apiUrl: "wss://api-omniston.ston.fi/v2/ws",
+  apiUrl: "wss://omni-ws.ston.fi",
 });
 
 function buildAssetId(token: SwapTokenInfo) {
@@ -27,14 +27,6 @@ function buildAssetId(token: SwapTokenInfo) {
 
 function buildChainAddress(address: string) {
   return { chain: { $case: "ton" as const, value: address } };
-}
-
-function hexToBase64(hex: string): string {
-  if (!hex) return "";
-  const pairs = hex.match(/.{1,2}/g) ?? [];
-  let binary = "";
-  for (const pair of pairs) binary += String.fromCharCode(parseInt(pair, 16));
-  return btoa(binary);
 }
 
 export function buildOmnistonSwapRequest(
@@ -105,10 +97,9 @@ export function tonTransactionToTonConnect(tx: TonTransaction) {
     messages: tx.messages.map((msg) => ({
       address: msg.targetAddress,
       amount: msg.sendAmount,
-      payload: msg.payload ? hexToBase64(msg.payload) : undefined,
-      stateInit: msg.jettonWalletStateInit
-        ? hexToBase64(msg.jettonWalletStateInit)
-        : undefined,
+      // payload and stateInit arrive from Omniston already base64-encoded
+      payload: msg.payload || undefined,
+      stateInit: msg.jettonWalletStateInit || undefined,
     })),
   };
 }
