@@ -68,6 +68,7 @@ export const BOUNTIES: Bounty[] = [
     isHot: false,
     icon: "code",
     creatorName: "TonBuilders",
+    entryFee: "0.5",
   },
   {
     id: "5",
@@ -85,6 +86,7 @@ export const BOUNTIES: Bounty[] = [
     isHot: true,
     icon: "star",
     creatorName: "MemeLabs",
+    entryFee: "0.25",
   },
   {
     id: "6",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   TonDiamond,
   ClockIcon,
@@ -62,6 +63,7 @@ interface BountyCardProps {
 }
 
 export function BountyCard({ bounty }: BountyCardProps) {
+  const router = useRouter();
   const [seconds, setSeconds] = useState(bounty.timeLeftSeconds);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -79,9 +81,9 @@ export function BountyCard({ bounty }: BountyCardProps) {
 
   return (
     <div
+      onClick={() => router.push(`/bounty/${bounty.id}`)}
       className={cn(
-        "rounded-2xl p-4 mb-3 relative overflow-hidden transition-all duration-200 cursor-pointer",
-        "hover:scale-[1.01] active:scale-[0.99]",
+        "rounded-2xl p-4 mb-3 relative overflow-hidden transition-all duration-200 cursor-pointer press-scale",
         bounty.isHot && "animate-pulse-lime"
       )}
       style={{

@@ -297,6 +297,92 @@ export function ShareIcon({ size = 20, color = "#9CA3AF" }: { size?: number; col
   );
 }
 
+/* ─── Arrow Left (back navigation) ─── */
+export function ArrowLeftIcon({ size = 20, color = "#EAEAEA" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* ─── Plus (create bounty) ─── */
+export function PlusIcon({ size = 20, color = "#0D0E10" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M12 5V19M5 12H19" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* ─── Swap arrows ─── */
+export function SwapArrowsIcon({ size = 20, color = "#B5F23A" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M7 16V4M7 4L4 7M7 4L10 7" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17 8V20M17 20L14 17M17 20L20 17" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* ─── Text proof type ─── */
+export function TextIcon({ size = 18, color = "#9CA3AF" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M4 6H20M4 10H14M4 14H18M4 18H12" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* ─── Link proof type ─── */
+export function LinkIcon({ size = 18, color = "#9CA3AF" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* ─── Image proof type ─── */
+export function ImageIcon({ size = 18, color = "#9CA3AF" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="18" height="18" rx="2" stroke={color} strokeWidth="1.5" />
+      <circle cx="8.5" cy="8.5" r="1.5" fill={color} />
+      <path d="M3 16L8 11L12 15L15 12L21 18" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* ─── Check (success) ─── */
+export function CheckIcon({ size = 20, color = "#B5F23A" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M5 13L9 17L19 7" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* ─── Spinner (loading) ─── */
+export function SpinnerIcon({ size = 18, color = "#B5F23A" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className="animate-spin">
+      <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2" strokeOpacity="0.25" />
+      <path d="M12 3a9 9 0 019 9" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* ─── Chevron Down ─── */
+export function ChevronDownIcon({ size = 16, color = "#9CA3AF" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M6 9L12 15L18 9" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 /* ─── BountyHive hex logo ─── */
 export function HexLogo({ size = 36 }: { size?: number }) {
   return (

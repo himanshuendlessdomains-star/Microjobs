@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   HexLogo,
   EllipsisIcon,
   TrendingIcon,
   ChevronRightIcon,
+  PlusIcon,
 } from "@/components/icons";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { SearchBar } from "./SearchBar";
@@ -16,6 +18,7 @@ import { BOUNTIES, CATEGORIES } from "@/lib/data";
 type Category = (typeof CATEGORIES)[number];
 
 export function DiscoverScreen() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<Category>("All");
 
@@ -108,6 +111,26 @@ export function DiscoverScreen() {
           )}
         </div>
       </div>
+
+      {/* ── Create FAB ── */}
+      <button
+        onClick={() => router.push("/create")}
+        className="absolute press-scale"
+        style={{
+          bottom: 78,
+          right: 18,
+          width: 48,
+          height: 48,
+          borderRadius: 14,
+          background: "#B5F23A",
+          boxShadow: "0 0 18px 4px #B5F23A40",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <PlusIcon size={22} color="#0D0E10" />
+      </button>
 
       {/* ── Bottom Nav ── */}
       <BottomNav />
