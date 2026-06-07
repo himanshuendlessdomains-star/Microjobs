@@ -1,36 +1,187 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BountyHive
+
+**Hire humans. Earn TON. Powered by Telegram.**
+
+BountyHive is a Telegram Mini App for creating and completing on-chain bounties on the TON blockchain.
+Creators fund bounties in TON, participants submit proof, and winners are paid automatically via smart contracts.
+
+---
+
+## Screenshots
+
+> Discover screen — dark theme, live countdown timers, hot bounty glow, category filtering.
+
+The UI renders at 390x844px to match the Telegram Mini App WebView viewport.
+
+---
+
+## Tech Stack
+
+| Layer           | Technology                                        |
+| --------------- | ------------------------------------------------- |
+| Frontend        | Next.js 14 (App Router), TypeScript, Tailwind CSS |
+| Backend         | Node.js + Express (TypeScript)                    |
+| Database        | Supabase (PostgreSQL + Realtime)                  |
+| Smart Contracts | Tact (compiled to FunC for TON VM)                |
+| Token Swapping  | Omniston to StonFi aggregator                     |
+| Wallet          | TonConnect v2 (UI React SDK)                      |
+| Hosting         | Vercel (frontend) + Render (backend)              |
+
+---
 
 ## Getting Started
 
-First, run the development server:
+Prerequisites: Node.js 18 or later, npm 9 or later.
 
 ```bash
+# 1. Clone the repo
+git clone https://github.com/your-org/bountyhive.git
+cd bountyhive
+
+# 2. Install dependencies
+npm install
+
+# 3. Start the development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+The app renders inside a phone frame so you see exactly what Telegram users will see.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+```bash
+npm run dev      # Start dev server with hot reload at http://localhost:3000
+npm run build    # Production build — must pass with zero errors
+npm run start    # Serve the production build locally
+npm run lint     # Run ESLint
+```
 
-To learn more about Next.js, take a look at the following resources:
+The build must pass cleanly before any pull request is merged.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+src/
+  app/
+    globals.css          Base styles, custom utilities (scrollbar-hide, press-scale)
+    layout.tsx           Root layout — Geist font, page metadata
+    page.tsx             Entry — renders PhoneFrame + DiscoverScreen
+  components/
+    icons/
+      index.tsx          All SVG icon components (no external icon library)
+    layout/
+      BottomNav.tsx      4-tab bottom navigation bar
+      PhoneFrame.tsx     390x844 phone shell wrapper
+    discover/
+      BountyCard.tsx     Bounty card with live countdown timer and winner badge
+      CategoryFilter.tsx Horizontal pill tab filter (All / Creative / Social / Analytics / Dev)
+      DiscoverScreen.tsx Assembled Discover screen
+      SearchBar.tsx      Search input with real-time filtering
+  lib/
+    data.ts              Mock bounty data (replace with API calls when backend is ready)
+    types.ts             Shared TypeScript types
+    utils.ts             cn(), formatCountdown(), formatTON()
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Design System
+
+The UI uses a single dark theme with lime green as the primary accent.
+
+| Token     | Hex       | Role                                      |
+| --------- | --------- | ----------------------------------------- |
+| Lime      | #B5F23A   | CTAs, active states, TON amounts, glows   |
+| Dark BG   | #0D0E10   | App and phone frame background            |
+| Card      | #111317   | Bounty card surfaces                      |
+| Border    | #1E2127   | Default borders                           |
+| Primary   | #EAEAEA   | Headlines and card titles                 |
+| Secondary | #C8CDD8   | Values, countdowns                        |
+| Muted     | #9CA3AF   | Icon strokes and labels                   |
+| Faint     | #5A6070   | Column headers (Pool, Time Left, etc.)    |
+| Urgent    | #F87171   | Countdown color when under 1 hour         |
+
+All colours are defined in `tailwind.config.ts`. Use Tailwind utilities where possible
+and inline `style` props only for dynamic values like glow shadows and gradients.
+
+---
+
+## Roadmap
+
+### Phase 1 — Foundation (current)
+- [x] Next.js project scaffolded with Tailwind CSS
+- [x] Design system and color palette defined
+- [x] PhoneFrame and BottomNav layout
+- [x] Discover screen with search and category filtering
+- [x] BountyCard with live countdown timer
+- [x] Mock data layer
+
+### Phase 2 — Wallet and Auth
+- [ ] TonConnect v2 integration
+- [ ] Telegram Mini App SDK (initData validation, theme, viewport)
+- [ ] Supabase auth and user profiles
+
+### Phase 3 — Core Flows
+- [ ] Bounty detail page and proof submission
+- [ ] Create Bounty form with TonConnect payment
+- [ ] My Bounties dashboard
+- [ ] Notifications screen
+
+### Phase 4 — On-Chain
+- [ ] Tact smart contracts (BountyFactory, EscrowContract)
+- [ ] Express backend and Supabase wired to frontend
+- [ ] TON HTTP API v2 indexer for payment confirmation
+- [ ] Omniston and StonFi token swap integration
+
+### Phase 5 — Polish and Launch
+- [ ] Profile screen
+- [ ] Vault distribution and referral system
+- [ ] Security audit of smart contracts
+- [ ] Vercel and Render deployment
+
+---
+
+## Environment Variables
+
+Create a `.env.local` file at the project root for local development.
+Never commit this file.
+
+```bash
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+# TonConnect
+NEXT_PUBLIC_TON_CONNECT_MANIFEST_URL=https://yourdomain.com/tonconnect-manifest.json
+
+# Telegram Bot
+TELEGRAM_BOT_TOKEN=
+
+# Backend API
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
+
+A `tonconnect-manifest.json` must be publicly accessible at your domain root before
+TonConnect wallet connections will work in production.
+
+---
+
+## Contributing
+
+1. Branch from `main` using the pattern `feature/your-feature-name`.
+2. Run `npm run build` locally before opening a pull request. The build must pass.
+3. Keep components focused: UI logic in components, data fetching in server components or hooks,
+   shared types in `src/lib/types.ts`.
+4. Follow the design system. Do not introduce new colours or font sizes without discussion.
+5. See `CLAUDE.md` for detailed conventions used when working with Claude Code.
+
+---
+
+## License
+
+MIT
