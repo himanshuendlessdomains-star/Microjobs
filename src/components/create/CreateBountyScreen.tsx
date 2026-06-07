@@ -32,9 +32,10 @@ const BOUNTY_TYPES: { type: BountyType; label: string; desc: string }[] = [
   { type: "quiz", label: "Quiz", desc: "Answer questions correctly" },
 ];
 
-// Platform escrow address — set NEXT_PUBLIC_ESCROW_ADDRESS in .env.local.
-// Use a testnet hot-wallet while testing; replace with deployed contract on mainnet.
-const ESCROW_ADDRESS = process.env.NEXT_PUBLIC_ESCROW_ADDRESS ?? "";
+// Reads at call time so a dev-server restart isn't needed when .env.local changes.
+function getEscrowAddress() {
+  return process.env.NEXT_PUBLIC_ESCROW_ADDRESS ?? "";
+}
 
 function StepIndicator({ step }: { step: Step }) {
   const steps = ["Details", "Rewards", "Review"];
@@ -123,7 +124,8 @@ export function CreateBountyScreen() {
 
   async function handleLaunch() {
     if (!isConnected || !rawAddress) return;
-    if (!ESCROW_ADDRESS) {
+    const escrowAddress = getEscrowAddress();
+    if (!escrowAddress) {
       setLaunchError("Escrow address not configured. Set NEXT_PUBLIC_ESCROW_ADDRESS in .env.local.");
       return;
     }
@@ -133,7 +135,8 @@ export function CreateBountyScreen() {
       const nanotons = Math.floor(parseFloat(form.poolAmount) * 1e9).toString();
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
-        messages: [{ address: ESCROW_ADDRESS, amount: nanotons }],
+        network: "-239",
+        messages: [{ address: escrowAddress, amount: nanotons }],
       });
       await createBounty({ ...form, creatorAddress: rawAddress });
       setLaunched(true);

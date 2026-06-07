@@ -86,6 +86,7 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
       const nanotons = Math.floor(parseFloat(bounty.entryFee) * 1e9).toString();
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
+        network: "-239",
         messages: [{ address: escrowAddress, amount: nanotons }],
       });
       return true;
