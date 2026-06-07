@@ -20,7 +20,7 @@ import {
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ProofSubmitModal } from "./ProofSubmitModal";
 import { SwapModal } from "./SwapModal";
-import { getBounty } from "@/lib/api";
+import { getBounty, submitProof } from "@/lib/api";
 import { cn, formatCountdown, formatTON } from "@/lib/utils";
 import { useWallet } from "@/hooks/useTonWallet";
 import type { Bounty, ProofSubmission } from "@/lib/types";
@@ -114,9 +114,12 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
     setParticipateState({ status: "proof" });
   }
 
-  function handleProofSubmit(sub: ProofSubmission) {
+  async function handleProofSubmit(sub: ProofSubmission) {
     setSubmission(sub);
     setParticipateState({ status: "done" });
+    if (rawAddress) {
+      submitProof(bountyId, { ...sub, walletAddress: rawAddress }).catch(() => {});
+    }
   }
 
   const participated = participateState.status === "done" && !!submission;

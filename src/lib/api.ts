@@ -1,4 +1,4 @@
-import type { Bounty, UserBounty, AppNotification } from "./types";
+import type { Bounty, UserBounty, AppNotification, CreateBountyFormData, ProofSubmission } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -46,4 +46,22 @@ export async function getNotifications(walletAddress: string): Promise<AppNotifi
 
 export async function markAllRead(walletAddress: string): Promise<void> {
   await post(`/api/users/${encodeURIComponent(walletAddress)}/notifications/read-all`);
+}
+
+export async function createBounty(
+  data: CreateBountyFormData & { creatorAddress: string; creatorName?: string }
+): Promise<Bounty> {
+  return post<Bounty>("/api/bounties", data);
+}
+
+export async function submitProof(
+  bountyId: string,
+  sub: ProofSubmission & { walletAddress: string }
+): Promise<void> {
+  await post(`/api/bounties/${bountyId}/participate`, {
+    walletAddress: sub.walletAddress,
+    proofType: sub.proofType,
+    content: sub.content,
+    notes: sub.notes,
+  });
 }

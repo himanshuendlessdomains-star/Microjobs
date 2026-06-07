@@ -13,6 +13,7 @@ import {
 import { SwapModal } from "@/components/bounty/SwapModal";
 import { useWallet } from "@/hooks/useTonWallet";
 import { cn } from "@/lib/utils";
+import { createBounty } from "@/lib/api";
 import type { CreateBountyFormData, BountyType, WinnerSelection } from "@/lib/types";
 
 type Step = 1 | 2 | 3 | 4;
@@ -126,13 +127,9 @@ export function CreateBountyScreen() {
       const nanotons = Math.floor(parseFloat(form.poolAmount) * 1e9).toString();
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
-        messages: [
-          {
-            address: ESCROW_PLACEHOLDER,
-            amount: nanotons,
-          },
-        ],
+        messages: [{ address: ESCROW_PLACEHOLDER, amount: nanotons }],
       });
+      await createBounty({ ...form, creatorAddress: rawAddress });
       setLaunched(true);
     } catch (err) {
       setLaunchError(err instanceof Error ? err.message : "Transaction rejected.");

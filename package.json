@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ston-fi/omniston-sdk": "^0.8.3",
+    "@supabase/supabase-js": "^2.107.0",
     "@tonconnect/ui-react": "^2.4.4",
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",
