@@ -1,7 +1,4 @@
 {
-  "url": "https://microjobs-nine.vercel.app/",
-  "name": "BountyHive",
-  "iconUrl": "https://microjobs-nine.vercel.app/icon.png",
-  "termsOfUseUrl": "https://microjobs-nine.vercel.app/terms",
-  "privacyPolicyUrl": "https://microjobs-nine.vercel.app/privacy"
+  "url": "https://microjobs-nine.vercel.app",
+  "name": "BountyHive"
 }

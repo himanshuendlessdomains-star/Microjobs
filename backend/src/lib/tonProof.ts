@@ -6,7 +6,15 @@ import type { TonProofPayload } from "../types/index.js";
 const PROOF_LIFETIME = parseInt(process.env.PROOF_LIFETIME_SECONDS ?? "300", 10);
 const ALLOWED_DOMAINS = (process.env.ALLOWED_DOMAINS ?? "localhost")
   .split(",")
-  .map((d) => d.trim());
+  .map((d) => {
+    const s = d.trim();
+    try {
+      // Strip protocol + trailing slash so full URLs and bare hostnames both work
+      return /^https?:\/\//i.test(s) ? new URL(s).hostname : s.replace(/\/$/, "");
+    } catch {
+      return s;
+    }
+  });
 
 /**
  * Verify a TonConnect v2 proof.

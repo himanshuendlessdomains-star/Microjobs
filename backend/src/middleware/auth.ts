@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import type { JwtPayload } from "../types/index.js";
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET?.trim();
 
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET is not set. Add it to your .env file.");
@@ -26,9 +26,10 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 }
 
 export function signToken(address: string, network: string): string {
+  const expiresIn = (process.env.JWT_EXPIRES_IN ?? "7d") as unknown as number;
   return jwt.sign(
     { sub: address, network },
     JWT_SECRET as string,
-    { expiresIn: process.env.JWT_EXPIRES_IN ?? "7d" }
+    { expiresIn }
   );
 }
