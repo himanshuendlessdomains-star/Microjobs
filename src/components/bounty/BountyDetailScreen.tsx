@@ -15,14 +15,15 @@ import {
   CodeBountyIcon,
   StarBountyIcon,
   TrophyBountyIcon,
+  SpinnerIcon,
 } from "@/components/icons";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ProofSubmitModal } from "./ProofSubmitModal";
 import { SwapModal } from "./SwapModal";
-import { BOUNTIES } from "@/lib/data";
+import { getBounty } from "@/lib/api";
 import { cn, formatCountdown, formatTON } from "@/lib/utils";
 import { useWallet } from "@/hooks/useTonWallet";
-import type { ProofSubmission } from "@/lib/types";
+import type { Bounty, ProofSubmission } from "@/lib/types";
 
 const ICON_MAP = {
   rocket: RocketBountyIcon,
@@ -48,24 +49,43 @@ interface ParticipateState {
 export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
   const router = useRouter();
   const { isConnected, rawAddress } = useWallet();
-  const bounty = BOUNTIES.find((b) => b.id === bountyId);
+  const [bounty, setBounty] = useState<Bounty | null>(null);
+  const [loadingBounty, setLoadingBounty] = useState(true);
+  const [fetchError, setFetchError] = useState("");
 
-  const [seconds, setSeconds] = useState(bounty?.timeLeftSeconds ?? 0);
+  const [seconds, setSeconds] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [participateState, setParticipateState] = useState<ParticipateState>({ status: "idle" });
   const [submission, setSubmission] = useState<ProofSubmission | null>(null);
 
   useEffect(() => {
+    setLoadingBounty(true);
+    getBounty(bountyId)
+      .then((data) => { setBounty(data); setSeconds(data.timeLeftSeconds); })
+      .catch(() => setFetchError("Bounty not found."))
+      .finally(() => setLoadingBounty(false));
+  }, [bountyId]);
+
+  useEffect(() => {
+    if (!bounty) return;
     intervalRef.current = setInterval(() => {
       setSeconds((s) => Math.max(0, s - 1));
     }, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, []);
+  }, [bounty]);
 
-  if (!bounty) {
+  if (loadingBounty) {
     return (
       <div className="flex flex-col h-full items-center justify-center gap-3" style={{ background: "#0D0E10" }}>
-        <p className="text-[#5A6070] text-sm">Bounty not found.</p>
+        <SpinnerIcon size={32} />
+      </div>
+    );
+  }
+
+  if (!bounty || fetchError) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center gap-3" style={{ background: "#0D0E10" }}>
+        <p className="text-[#5A6070] text-sm">{fetchError || "Bounty not found."}</p>
         <button onClick={() => router.back()} className="text-[#B5F23A] text-sm font-semibold press-scale">Go back</button>
       </div>
     );

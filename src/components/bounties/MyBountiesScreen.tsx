@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import {
   TonDiamond,
@@ -12,9 +12,11 @@ import {
   CodeBountyIcon,
   StarBountyIcon,
   TrophyBountyIcon,
+  SpinnerIcon,
 } from "@/components/icons";
 import { cn, formatCountdown, formatTON } from "@/lib/utils";
-import { USER_BOUNTIES } from "@/lib/data";
+import { getUserBounties } from "@/lib/api";
+import { useWallet } from "@/hooks/useTonWallet";
 import type { UserBounty, BountyRole } from "@/lib/types";
 
 const ICON_MAP = {
@@ -67,9 +69,7 @@ function UserBountyRow({ bounty }: { bounty: UserBounty }) {
     intervalRef.current = setInterval(() => {
       setSeconds((s) => Math.max(0, s - 1));
     }, 1000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [bounty.status]);
 
   const BountyIcon = ICON_MAP[bounty.icon];
@@ -101,9 +101,7 @@ function UserBountyRow({ bounty }: { bounty: UserBounty }) {
           <div className="flex items-center gap-4 mb-1.5">
             <div className="flex items-center gap-1">
               <TonDiamond size={12} />
-              <span className="text-xs font-bold text-[#B5F23A]">
-                {formatTON(bounty.poolAmount)} TON
-              </span>
+              <span className="text-xs font-bold text-[#B5F23A]">{formatTON(bounty.poolAmount)} TON</span>
             </div>
             <div className="flex items-center gap-1">
               <PeopleIcon size={12} />
@@ -114,27 +112,20 @@ function UserBountyRow({ bounty }: { bounty: UserBounty }) {
           {bounty.status === "active" && (
             <div className="flex items-center gap-1">
               <ClockIcon size={12} color={isUrgent ? "#F87171" : "#9CA3AF"} />
-              <span
-                className={cn(
-                  "font-mono text-xs tabular-nums",
-                  isUrgent ? "text-red-400" : "text-[#9CA3AF]"
-                )}
-              >
+              <span className={cn("font-mono text-xs tabular-nums", isUrgent ? "text-red-400" : "text-[#9CA3AF]")}>
                 {formatCountdown(seconds)} left
               </span>
             </div>
           )}
           {bounty.status === "won" && (
-            <p className="text-xs font-bold text-[#B5F23A]">
-              Won +{formatTON(bounty.perWinnerAmount)} TON
-            </p>
+            <p className="text-xs font-bold text-[#B5F23A]">Won +{formatTON(bounty.perWinnerAmount)} TON</p>
           )}
           {bounty.status === "ended" && bounty.role === "joined" && (
             <p className="text-xs text-[#5A6070]">Ended</p>
           )}
           {bounty.status === "ended" && bounty.role === "created" && (
             <p className="text-xs text-[#5A6070]">
-              Ended · {bounty.winnerCount} winner{bounty.winnerCount > 1 ? "s" : ""} selected
+              Ended &middot; {bounty.winnerCount} winner{bounty.winnerCount > 1 ? "s" : ""} selected
             </p>
           )}
         </div>
@@ -170,15 +161,59 @@ function EmptyState({ role }: { role: BountyRole }) {
       <p className="text-xs text-[#5A6070] text-center leading-relaxed" style={{ maxWidth: 220 }}>
         {role === "joined"
           ? "Browse Discover to find bounties and start earning TON"
-          : "Creating bounties is coming soon"}
+          : "Create your first bounty using the + button on Discover"}
       </p>
     </div>
   );
 }
 
+function WalletGate({ onConnect }: { onConnect: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center flex-1 px-8 gap-5">
+      <div
+        className="w-20 h-20 rounded-3xl flex items-center justify-center"
+        style={{
+          background: "linear-gradient(135deg, #1A2409 0%, #232E0F 100%)",
+          border: "2px solid #B5F23A30",
+        }}
+      >
+        <TonDiamond size={32} />
+      </div>
+      <div className="text-center">
+        <p className="text-lg font-bold text-[#EAEAEA] mb-2">Connect your wallet</p>
+        <p className="text-sm text-[#9CA3AF] leading-relaxed">
+          Connect your TON wallet to view the bounties you&apos;ve joined and created.
+        </p>
+      </div>
+      <button
+        onClick={onConnect}
+        className="w-full py-3.5 rounded-2xl font-bold text-sm text-[#0D0E10] press-scale"
+        style={{ background: "#B5F23A", boxShadow: "0 0 18px 3px #B5F23A30" }}
+      >
+        Connect Wallet
+      </button>
+    </div>
+  );
+}
+
 export function MyBountiesScreen() {
+  const { isConnected, rawAddress, connect } = useWallet();
   const [role, setRole] = useState<BountyRole>("joined");
-  const bounties = USER_BOUNTIES.filter((b) => b.role === role);
+  const [allBounties, setAllBounties] = useState<UserBounty[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isConnected || !rawAddress) return;
+    setLoading(true);
+    setError("");
+    getUserBounties(rawAddress)
+      .then(setAllBounties)
+      .catch(() => setError("Could not load your bounties."))
+      .finally(() => setLoading(false));
+  }, [isConnected, rawAddress]);
+
+  const bounties = allBounties.filter((b) => b.role === role);
 
   return (
     <div className="flex flex-col h-full relative">
@@ -186,37 +221,49 @@ export function MyBountiesScreen() {
         <h1 className="text-[17px] font-bold text-[#EAEAEA] text-center">My Bounties</h1>
       </header>
 
-      <div className="px-4 mb-4 flex-shrink-0">
-        <div
-          className="flex gap-1 p-1 rounded-2xl"
-          style={{ background: "#141619", border: "1px solid #1E2127" }}
-        >
-          {(["joined", "created"] as const).map((r) => (
-            <button
-              key={r}
-              onClick={() => setRole(r)}
-              className={cn(
-                "flex-1 py-2 rounded-xl text-sm font-semibold transition-all duration-200 press-scale",
-                role === r ? "text-[#EAEAEA]" : "text-[#5A6070]"
-              )}
-              style={role === r ? { background: "#1E2127" } : {}}
+      {!isConnected ? (
+        <WalletGate onConnect={connect} />
+      ) : (
+        <>
+          <div className="px-4 mb-4 flex-shrink-0">
+            <div
+              className="flex gap-1 p-1 rounded-2xl"
+              style={{ background: "#141619", border: "1px solid #1E2127" }}
             >
-              {r === "joined" ? "Participating" : "Created"}
-            </button>
-          ))}
-        </div>
-      </div>
+              {(["joined", "created"] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRole(r)}
+                  className={cn(
+                    "flex-1 py-2 rounded-xl text-sm font-semibold transition-all duration-200 press-scale",
+                    role === r ? "text-[#EAEAEA]" : "text-[#5A6070]"
+                  )}
+                  style={role === r ? { background: "#1E2127" } : {}}
+                >
+                  {r === "joined" ? "Participating" : "Created"}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      <div
-        className="flex-1 overflow-y-auto scrollbar-hide px-4"
-        style={{ paddingBottom: 90 }}
-      >
-        {bounties.length === 0 ? (
-          <EmptyState role={role} />
-        ) : (
-          bounties.map((b) => <UserBountyRow key={b.id} bounty={b} />)
-        )}
-      </div>
+          <div className="flex-1 overflow-y-auto scrollbar-hide px-4" style={{ paddingBottom: 90 }}>
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <SpinnerIcon size={28} />
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <span className="text-3xl">⚠️</span>
+                <p className="text-[#5A6070] text-sm font-medium">{error}</p>
+              </div>
+            ) : bounties.length === 0 ? (
+              <EmptyState role={role} />
+            ) : (
+              bounties.map((b) => <UserBountyRow key={b.id} bounty={b} />)
+            )}
+          </div>
+        </>
+      )}
 
       <BottomNav />
     </div>
