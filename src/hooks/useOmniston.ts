@@ -90,17 +90,19 @@ export function useOmniston(walletAddress: string | null, opts?: UseOmnistonOpti
     };
   }, []);
 
-  const executeSwap = useCallback(async () => {
-    if (!quote || !walletAddress) return;
+  const executeSwap = useCallback(async (): Promise<boolean> => {
+    if (!quote || !walletAddress) return false;
     setStatus("swapping");
     try {
       const tx = await buildSwapTransaction(quote, walletAddress);
       const tcTx = tonTransactionToTonConnect(tx);
       await tonConnectUI.sendTransaction(tcTx);
       setStatus("done");
+      return true;
     } catch (err) {
       setStatus("error");
       setErrorMsg(err instanceof Error ? err.message : "Swap failed.");
+      return false;
     }
   }, [quote, walletAddress, tonConnectUI]);
 

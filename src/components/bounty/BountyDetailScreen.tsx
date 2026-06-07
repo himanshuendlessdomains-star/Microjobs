@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeftIcon,
@@ -20,6 +20,7 @@ import {
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ProofSubmitModal } from "./ProofSubmitModal";
 import { SwapModal } from "./SwapModal";
+import { useTonConnectUI } from "@tonconnect/ui-react";
 import { getBounty, submitProof } from "@/lib/api";
 import { cn, formatCountdown, formatTON } from "@/lib/utils";
 import { useWallet } from "@/hooks/useTonWallet";
@@ -55,8 +56,10 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
 
   const [seconds, setSeconds] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [tonConnectUI] = useTonConnectUI();
   const [participateState, setParticipateState] = useState<ParticipateState>({ status: "idle" });
   const [submission, setSubmission] = useState<ProofSubmission | null>(null);
+  const [payingFee, setPayingFee] = useState(false);
 
   useEffect(() => {
     setLoadingBounty(true);
@@ -73,6 +76,23 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
     }, 1000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [bounty]);
+
+  // Must be declared before early returns so hook order is stable.
+  const sendEntryFee = useCallback(async (): Promise<boolean> => {
+    if (!bounty?.entryFee || !rawAddress) return false;
+    const escrowAddress = process.env.NEXT_PUBLIC_ESCROW_ADDRESS;
+    if (!escrowAddress) return false;
+    try {
+      const nanotons = Math.floor(parseFloat(bounty.entryFee) * 1e9).toString();
+      await tonConnectUI.sendTransaction({
+        validUntil: Math.floor(Date.now() / 1000) + 600,
+        messages: [{ address: escrowAddress, amount: nanotons }],
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }, [bounty, rawAddress, tonConnectUI]);
 
   if (loadingBounty) {
     return (
@@ -105,13 +125,21 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
     }
   }
 
-  function handlePayTon() {
-    setParticipateState({ status: "proof" });
+  async function handlePayTon() {
+    setPayingFee(true);
+    const ok = await sendEntryFee();
+    setPayingFee(false);
+    if (ok) setParticipateState({ status: "proof" });
   }
 
-  function handleSwapSuccess(receivedTon: string) {
-    console.log("Swap complete, received", receivedTon, "TON");
-    setParticipateState({ status: "proof" });
+  async function handleSwapSuccess(receivedTon: string) {
+    // User has swapped to TON; now pay the entry fee with it.
+    console.log("Swap succeeded, received", receivedTon, "TON — paying entry fee");
+    setPayingFee(true);
+    const ok = await sendEntryFee();
+    setPayingFee(false);
+    if (ok) setParticipateState({ status: "proof" });
+    else setParticipateState({ status: "entry_fee_choice" });
   }
 
   async function handleProofSubmit(sub: ProofSubmission) {
@@ -380,10 +408,12 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
             <div className="flex flex-col gap-3">
               <button
                 onClick={handlePayTon}
-                className="w-full py-3.5 rounded-2xl font-bold text-sm text-[#0D0E10] press-scale"
-                style={{ background: "#B5F23A" }}
+                disabled={payingFee}
+                className="w-full py-3.5 rounded-2xl font-bold text-sm text-[#0D0E10] press-scale flex items-center justify-center gap-2"
+                style={{ background: payingFee ? "#8BAF2A" : "#B5F23A" }}
               >
-                Pay with TON
+                {payingFee && <SpinnerIcon size={16} color="#0D0E10" />}
+                {payingFee ? "Awaiting Wallet..." : "Pay with TON"}
               </button>
               <button
                 onClick={() => setParticipateState({ status: "swap" })}

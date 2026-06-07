@@ -104,8 +104,8 @@ export function SwapModal({ targetTon, walletAddress, onClose, onSuccess }: Swap
   });
 
   async function handleConfirmSwap() {
-    await executeSwap();
-    if (estimatedOutput) {
+    const ok = await executeSwap();
+    if (ok && estimatedOutput) {
       onSuccess(estimatedOutput);
     }
   }
