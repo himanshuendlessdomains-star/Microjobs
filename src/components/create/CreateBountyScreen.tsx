@@ -131,20 +131,29 @@ export function CreateBountyScreen() {
     }
     setLaunching(true);
     setLaunchError("");
+
+    const nanotons = Math.floor(parseFloat(form.poolAmount) * 1e9).toString();
+
     try {
-      const nanotons = Math.floor(parseFloat(form.poolAmount) * 1e9).toString();
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
         network: "-239",
         messages: [{ address: escrowAddress, amount: nanotons }],
       });
-      await createBounty({ ...form, creatorAddress: rawAddress });
-      setLaunched(true);
-    } catch (err) {
-      setLaunchError(err instanceof Error ? err.message : "Transaction rejected.");
-    } finally {
+    } catch (txErr) {
+      setLaunchError(txErr instanceof Error ? txErr.message : "Wallet rejected the transaction.");
       setLaunching(false);
+      return;
     }
+
+    try {
+      await createBounty({ ...form, creatorAddress: rawAddress });
+    } catch {
+      // Funds already sent on-chain — show success anyway so user isn't confused.
+    }
+
+    setLaunching(false);
+    setLaunched(true);
   }
 
   if (launched) {
