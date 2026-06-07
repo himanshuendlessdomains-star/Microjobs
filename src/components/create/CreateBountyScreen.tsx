@@ -91,7 +91,7 @@ function InputBox({ children }: { children: React.ReactNode }) {
 
 export function CreateBountyScreen() {
   const router = useRouter();
-  const { isConnected, rawAddress } = useWallet();
+  const { isConnected, isMainnet, rawAddress } = useWallet();
   const [tonConnectUI] = useTonConnectUI();
 
   const [step, setStep] = useState<Step>(1);
@@ -129,6 +129,10 @@ export function CreateBountyScreen() {
       setLaunchError("Escrow address not configured. Set NEXT_PUBLIC_ESCROW_ADDRESS in .env.local.");
       return;
     }
+    if (!isMainnet) {
+      setLaunchError("Your wallet is on testnet. Switch to TON Mainnet to fund a bounty.");
+      return;
+    }
     setLaunching(true);
     setLaunchError("");
 
@@ -137,7 +141,6 @@ export function CreateBountyScreen() {
     try {
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
-        network: "-239",
         messages: [{ address: escrowAddress, amount: nanotons }],
       });
     } catch (txErr) {

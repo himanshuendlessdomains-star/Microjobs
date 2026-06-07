@@ -49,7 +49,7 @@ interface ParticipateState {
 
 export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
   const router = useRouter();
-  const { isConnected, rawAddress } = useWallet();
+  const { isConnected, isMainnet, rawAddress } = useWallet();
   const [bounty, setBounty] = useState<Bounty | null>(null);
   const [loadingBounty, setLoadingBounty] = useState(true);
   const [fetchError, setFetchError] = useState("");
@@ -80,20 +80,20 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
   // Must be declared before early returns so hook order is stable.
   const sendEntryFee = useCallback(async (): Promise<boolean> => {
     if (!bounty?.entryFee || !rawAddress) return false;
+    if (!isMainnet) return false;
     const escrowAddress = process.env.NEXT_PUBLIC_ESCROW_ADDRESS;
     if (!escrowAddress) return false;
     try {
       const nanotons = Math.floor(parseFloat(bounty.entryFee) * 1e9).toString();
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
-        network: "-239",
         messages: [{ address: escrowAddress, amount: nanotons }],
       });
       return true;
     } catch {
       return false;
     }
-  }, [bounty, rawAddress, tonConnectUI]);
+  }, [bounty, rawAddress, isMainnet, tonConnectUI]);
 
   if (loadingBounty) {
     return (

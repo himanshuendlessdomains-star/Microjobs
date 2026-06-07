@@ -9,6 +9,7 @@ export function useWallet() {
   const rawAddress = useTonAddress(false);        // 0: raw hex format
 
   const isConnected = !!wallet;
+  const isMainnet = wallet?.account.chain === "-239";
 
   function connect() {
     tonConnectUI.openModal();
@@ -26,6 +27,7 @@ export function useWallet() {
 
   return {
     isConnected,
+    isMainnet,
     wallet,
     friendlyAddress,
     rawAddress,
