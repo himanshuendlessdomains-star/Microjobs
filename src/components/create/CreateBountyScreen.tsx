@@ -151,12 +151,14 @@ export function CreateBountyScreen() {
 
     try {
       await createBounty({ ...form, creatorAddress: rawAddress });
-    } catch {
-      // Funds already sent on-chain — show success anyway so user isn't confused.
+      setLaunched(true);
+    } catch (dbErr) {
+      setLaunchError(
+        `Funds sent! But the bounty could not be saved: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}. Check your Supabase setup and try again.`
+      );
+    } finally {
+      setLaunching(false);
     }
-
-    setLaunching(false);
-    setLaunched(true);
   }
 
   if (launched) {
