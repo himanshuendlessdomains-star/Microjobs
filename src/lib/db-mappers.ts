@@ -2,12 +2,15 @@ import type {
   Bounty,
   UserBounty,
   AppNotification,
+  Submission,
   BountyType,
   BountyStatus,
   BountyRole,
   Category,
   WinnerSelection,
   NotificationType,
+  ProofType,
+  SubmissionStatus,
 } from "./types";
 
 export type DbBounty = {
@@ -31,6 +34,17 @@ export type DbBounty = {
   entry_fee: number | null;
   status: string;
   created_at: string;
+};
+
+export type DbSubmission = {
+  id: string;
+  bounty_id: string;
+  wallet_address: string;
+  proof_type: string;
+  content: string;
+  notes: string;
+  status: string;
+  submitted_at: string;
 };
 
 export type DbNotification = {
@@ -98,6 +112,19 @@ export function mapUserBounty(
     role,
     icon: (row.icon as UserBounty["icon"]) ?? "rocket",
     category: row.category as Category,
+  };
+}
+
+export function mapSubmission(row: DbSubmission): Submission {
+  return {
+    id: row.id,
+    bountyId: row.bounty_id,
+    walletAddress: row.wallet_address,
+    proofType: row.proof_type as ProofType,
+    content: row.content,
+    notes: row.notes,
+    status: row.status as SubmissionStatus,
+    submittedAt: row.submitted_at,
   };
 }
 

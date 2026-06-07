@@ -95,13 +95,17 @@ export function useOmniston(walletAddress: string | null, opts?: UseOmnistonOpti
     setStatus("swapping");
     try {
       const tx = await buildSwapTransaction(quote, walletAddress);
+      if (!tx.messages.length) {
+        throw new Error("Omniston returned an empty transaction — try a different amount.");
+      }
       const tcTx = tonTransactionToTonConnect(tx);
       await tonConnectUI.sendTransaction(tcTx);
       setStatus("done");
       return true;
     } catch (err) {
       setStatus("error");
-      setErrorMsg(err instanceof Error ? err.message : "Swap failed.");
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMsg(msg || "Swap failed — please retry.");
       return false;
     }
   }, [quote, walletAddress, tonConnectUI]);

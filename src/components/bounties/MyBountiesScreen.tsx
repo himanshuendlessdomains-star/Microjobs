@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { BottomNav } from "@/components/layout/BottomNav";
 import {
   TonDiamond,
@@ -60,7 +61,13 @@ function StatusBadge({ status }: { status: UserBounty["status"] }) {
   );
 }
 
-function UserBountyRow({ bounty }: { bounty: UserBounty }) {
+function UserBountyRow({
+  bounty,
+  onReview,
+}: {
+  bounty: UserBounty;
+  onReview?: (id: string) => void;
+}) {
   const [seconds, setSeconds] = useState(bounty.timeLeftSeconds);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -77,7 +84,7 @@ function UserBountyRow({ bounty }: { bounty: UserBounty }) {
 
   return (
     <div
-      className="rounded-2xl p-4 mb-3 cursor-pointer press-scale"
+      className="rounded-2xl p-4 mb-3"
       style={{ background: "#111317", border: "1.5px solid #1E2127" }}
     >
       <div className="flex items-start gap-3">
@@ -130,6 +137,16 @@ function UserBountyRow({ bounty }: { bounty: UserBounty }) {
           )}
         </div>
       </div>
+
+      {bounty.role === "created" && onReview && (
+        <button
+          onClick={() => onReview(bounty.id)}
+          className="mt-3 w-full py-2 rounded-xl text-xs font-bold press-scale"
+          style={{ background: "#1A1D22", color: "#B5F23A", border: "1px solid #B5F23A30" }}
+        >
+          Review Submissions
+        </button>
+      )}
     </div>
   );
 }
@@ -198,6 +215,7 @@ function WalletGate({ onConnect }: { onConnect: () => void }) {
 
 export function MyBountiesScreen() {
   const { isConnected, rawAddress, connect } = useWallet();
+  const router = useRouter();
   const [role, setRole] = useState<BountyRole>("joined");
   const [allBounties, setAllBounties] = useState<UserBounty[]>([]);
   const [loading, setLoading] = useState(false);
@@ -259,7 +277,13 @@ export function MyBountiesScreen() {
             ) : bounties.length === 0 ? (
               <EmptyState role={role} />
             ) : (
-              bounties.map((b) => <UserBountyRow key={b.id} bounty={b} />)
+              bounties.map((b) => (
+                <UserBountyRow
+                  key={b.id}
+                  bounty={b}
+                  onReview={b.role === "created" ? (id) => router.push(`/review/${id}`) : undefined}
+                />
+              ))
             )}
           </div>
         </>

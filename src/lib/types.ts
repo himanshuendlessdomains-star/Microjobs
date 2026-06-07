@@ -68,6 +68,30 @@ export interface CreateBountyFormData {
   durationHours: number;
 }
 
+export type SubmissionStatus = "pending" | "approved" | "rejected";
+
+export interface Submission {
+  id: string;
+  bountyId: string;
+  walletAddress: string;
+  proofType: ProofType;
+  content: string;
+  notes: string;
+  status: SubmissionStatus;
+  submittedAt: string;
+}
+
+export interface ReviewBounty {
+  id: string;
+  title: string;
+  winnerCount: number;
+  winnerSelection: WinnerSelection;
+  poolAmount: string;
+  icon: "rocket" | "x" | "chart" | "code" | "star" | "trophy";
+  category: Category;
+  creatorAddress: string;
+}
+
 export interface SwapTokenInfo {
   symbol: string;
   name: string;

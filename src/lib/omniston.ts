@@ -91,15 +91,27 @@ export async function buildSwapTransaction(
   return omniston.tonBuildSwap(request);
 }
 
+/**
+ * Omniston may send base64url-encoded BOCs (protobuf bytes → base64url).
+ * TonConnect wallets require standard base64 (+ and / instead of - and _).
+ * This normalises both and ensures correct = padding.
+ */
+function toStandardBase64(s: string): string {
+  const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = b64.length % 4;
+  return pad ? b64 + "=".repeat(4 - pad) : b64;
+}
+
 export function tonTransactionToTonConnect(tx: TonTransaction) {
   return {
     validUntil: Math.floor(Date.now() / 1000) + 600,
     messages: tx.messages.map((msg) => ({
       address: msg.targetAddress,
       amount: msg.sendAmount,
-      // payload and stateInit arrive from Omniston already base64-encoded
-      payload: msg.payload || undefined,
-      stateInit: msg.jettonWalletStateInit || undefined,
+      payload: msg.payload ? toStandardBase64(msg.payload) : undefined,
+      stateInit: msg.jettonWalletStateInit
+        ? toStandardBase64(msg.jettonWalletStateInit)
+        : undefined,
     })),
   };
 }

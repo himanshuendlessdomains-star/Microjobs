@@ -41,9 +41,19 @@ export function toNanoUnits(amount: string, decimals: number): string {
 }
 
 export function fromNanoUnits(units: string, decimals: number): string {
-  const n = parseFloat(units);
-  if (isNaN(n)) return "0";
-  const result = n / 10 ** decimals;
-  const str = result.toFixed(decimals);
-  return parseFloat(str).toString();
+  if (!units || units === "0") return "0";
+  try {
+    // Use BigInt arithmetic to avoid float precision loss on large uint64 values.
+    const raw = BigInt(units);
+    const divisor = BigInt(10 ** decimals);
+    const whole = raw / divisor;
+    const remainder = raw % divisor;
+    if (remainder === 0n) return whole.toString();
+    const fracStr = remainder.toString().padStart(decimals, "0").replace(/0+$/, "");
+    return `${whole}.${fracStr}`;
+  } catch {
+    const n = parseFloat(units);
+    if (isNaN(n)) return "0";
+    return (n / 10 ** decimals).toFixed(decimals).replace(/\.?0+$/, "");
+  }
 }

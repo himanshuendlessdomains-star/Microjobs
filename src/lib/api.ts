@@ -1,4 +1,13 @@
-import type { Bounty, UserBounty, AppNotification, CreateBountyFormData, ProofSubmission } from "./types";
+import type {
+  Bounty,
+  UserBounty,
+  AppNotification,
+  CreateBountyFormData,
+  ProofSubmission,
+  Submission,
+  ReviewBounty,
+  SubmissionStatus,
+} from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -52,6 +61,28 @@ export async function createBounty(
   data: CreateBountyFormData & { creatorAddress: string; creatorName?: string }
 ): Promise<Bounty> {
   return post<Bounty>("/api/bounties", data);
+}
+
+export async function getSubmissions(
+  bountyId: string
+): Promise<{ bounty: ReviewBounty; submissions: Submission[]; approvedCount: number }> {
+  return get(`/api/bounties/${bountyId}/submissions`);
+}
+
+export async function updateSubmission(
+  bountyId: string,
+  submissionId: string,
+  status: SubmissionStatus
+): Promise<void> {
+  const res = await fetch(`${BASE}/api/bounties/${bountyId}/submissions/${submissionId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) {
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(json.error ?? `API ${res.status}`);
+  }
 }
 
 export async function submitProof(

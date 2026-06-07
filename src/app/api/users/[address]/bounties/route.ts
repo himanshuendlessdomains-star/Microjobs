@@ -20,10 +20,11 @@ export async function GET(
 
     if (createdErr) return NextResponse.json({ error: createdErr.message }, { status: 500 });
 
-    // Bounties this wallet submitted to (with submission status)
+    // Bounties this wallet submitted to (with submission status).
+    // Explicit FK hint avoids Supabase ambiguity errors.
     const { data: subs, error: subsErr } = await supabase
       .from("submissions")
-      .select("status, bounties(*)")
+      .select("status, bounties!bounty_id(*)")
       .eq("wallet_address", address)
       .order("submitted_at", { ascending: false });
 
