@@ -22,6 +22,7 @@ export interface Bounty {
   isHot: boolean;
   icon: "rocket" | "x" | "chart" | "code" | "star" | "trophy";
   creatorName: string;
+  creatorAddress: string;
   creatorAvatar?: string;
   entryFee?: string;
 }

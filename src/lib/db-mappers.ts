@@ -78,6 +78,7 @@ export function mapBounty(row: DbBounty): Bounty {
     isHot: row.is_hot,
     icon: (row.icon as Bounty["icon"]) ?? "rocket",
     creatorName: row.creator_name ?? "Anonymous",
+    creatorAddress: row.creator_address,
     creatorAvatar: row.creator_avatar ?? undefined,
     entryFee: row.entry_fee != null ? String(row.entry_fee) : undefined,
   };

@@ -21,7 +21,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { ProofSubmitModal } from "./ProofSubmitModal";
 import { SwapModal } from "./SwapModal";
 import { useTonConnectUI } from "@tonconnect/ui-react";
-import { getBounty, submitProof } from "@/lib/api";
+import { getBounty, submitProof, closeBounty } from "@/lib/api";
 import { cn, formatCountdown, formatTON } from "@/lib/utils";
 import { useWallet } from "@/hooks/useTonWallet";
 import type { Bounty, ProofSubmission } from "@/lib/types";
@@ -60,6 +60,8 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
   const [participateState, setParticipateState] = useState<ParticipateState>({ status: "idle" });
   const [submission, setSubmission] = useState<ProofSubmission | null>(null);
   const [payingFee, setPayingFee] = useState(false);
+  const [earlyCloseConfirm, setEarlyCloseConfirm] = useState(false);
+  const [earlyClosing, setEarlyClosing] = useState(false);
 
   useEffect(() => {
     setLoadingBounty(true);
@@ -116,6 +118,19 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
   const isUrgent = seconds > 0 && seconds < 3600;
   const hasEntryFee = !!bounty.entryFee;
   const categoryColor = CATEGORY_COLORS[bounty.category] ?? "#B5F23A";
+  const isCreator = !!rawAddress && rawAddress === bounty.creatorAddress;
+
+  async function handleEarlyClose() {
+    if (!rawAddress) return;
+    setEarlyClosing(true);
+    try {
+      await closeBounty(bountyId, rawAddress);
+      router.push(`/review/${bountyId}`);
+    } catch {
+      setEarlyClosing(false);
+      setEarlyCloseConfirm(false);
+    }
+  }
 
   function handleParticipateClick() {
     if (!isConnected) return;
@@ -352,7 +367,52 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
         className="absolute left-0 right-0 px-4 py-3"
         style={{ bottom: 64, background: "linear-gradient(to top, #0D0E10 60%, transparent)" }}
       >
-        {!isConnected ? (
+        {isCreator ? (
+          earlyCloseConfirm ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-center text-[#9CA3AF] mb-1">
+                This will end the bounty immediately. Winners can still be selected after.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setEarlyCloseConfirm(false)}
+                  disabled={earlyClosing}
+                  className="flex-1 py-3 rounded-2xl text-sm font-semibold press-scale"
+                  style={{ background: "#1A1D22", color: "#9CA3AF" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEarlyClose}
+                  disabled={earlyClosing}
+                  className="flex-1 py-3 rounded-2xl text-sm font-bold press-scale"
+                  style={{ background: "#F87171", color: "#fff" }}
+                >
+                  {earlyClosing ? "Closing..." : "Yes, Close"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => router.push(`/review/${bountyId}`)}
+                className="w-full py-3.5 rounded-2xl font-bold text-sm text-[#0D0E10] press-scale"
+                style={{ background: "#B5F23A", boxShadow: "0 0 18px 3px #B5F23A30" }}
+              >
+                Review Submissions
+              </button>
+              {seconds > 0 && (
+                <button
+                  onClick={() => setEarlyCloseConfirm(true)}
+                  className="w-full py-2.5 rounded-2xl text-xs font-semibold press-scale"
+                  style={{ background: "#1A1D22", color: "#F87171", border: "1px solid #F8717130" }}
+                >
+                  Close Bounty Early
+                </button>
+              )}
+            </div>
+          )
+        ) : !isConnected ? (
           <div
             className="p-3 rounded-2xl text-center text-xs text-[#9CA3AF]"
             style={{ background: "#111317", border: "1px solid #1E2127" }}

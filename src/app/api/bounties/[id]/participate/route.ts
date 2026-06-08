@@ -25,16 +25,19 @@ export async function POST(
     // Check bounty exists and is active
     const { data: bounty, error: bountyErr } = await supabase
       .from("bounties")
-      .select("id, status")
+      .select("id, status, creator_address")
       .eq("id", params.id)
       .maybeSingle();
 
     if (bountyErr || !bounty) {
       return NextResponse.json({ error: "Bounty not found" }, { status: 404 });
     }
-    const { status: bountyStatus } = bounty as { id: string; status: string };
-    if (bountyStatus !== "active") {
+    const row = bounty as { id: string; status: string; creator_address: string };
+    if (row.status !== "active") {
       return NextResponse.json({ error: "Bounty is no longer active" }, { status: 400 });
+    }
+    if (row.creator_address === body.walletAddress) {
+      return NextResponse.json({ error: "Creators cannot participate in their own bounty" }, { status: 403 });
     }
 
     // Prevent duplicate submissions
