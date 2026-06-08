@@ -98,7 +98,7 @@ export function useOmniston(walletAddress: string | null, opts?: UseOmnistonOpti
       if (!tx.messages.length) {
         throw new Error("Omniston returned an empty transaction — try a different amount.");
       }
-      const tcTx = tonTransactionToTonConnect(tx);
+      const tcTx = tonTransactionToTonConnect(tx, walletAddress);
       await tonConnectUI.sendTransaction(tcTx);
       setStatus("done");
       return true;
