@@ -12,7 +12,7 @@ export async function GET(
 
     const { data: bounty, error: bountyErr } = await supabase
       .from("bounties")
-      .select("id, title, winner_count, winner_selection, pool_amount, icon, category, creator_address")
+      .select("id, title, winner_count, winner_selection, pool_amount, per_winner_amount, icon, category, creator_address, status")
       .eq("id", params.id)
       .single();
 
@@ -39,9 +39,11 @@ export async function GET(
       winnerCount: bounty.winner_count,
       winnerSelection: bounty.winner_selection as "draw" | "manual",
       poolAmount: String(bounty.pool_amount),
+      perWinnerAmount: String(bounty.per_winner_amount ?? bounty.pool_amount / (bounty.winner_count || 1)),
       icon: bounty.icon as ReviewBounty["icon"],
       category: bounty.category,
       creatorAddress: bounty.creator_address,
+      status: bounty.status as ReviewBounty["status"],
     };
 
     return NextResponse.json({ bounty: reviewBounty, submissions, approvedCount });

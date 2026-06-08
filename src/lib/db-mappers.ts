@@ -93,7 +93,9 @@ export function mapUserBounty(
     Math.floor((new Date(row.deadline_at).getTime() - Date.now()) / 1000)
   );
   let status: BountyStatus;
-  if (row.status === "active") {
+  if (row.status === "closed") {
+    status = role === "joined" && submissionStatus === "approved" ? "won" : "closed";
+  } else if (row.status === "active") {
     status = "active";
   } else if (role === "joined" && submissionStatus === "approved") {
     status = "won";

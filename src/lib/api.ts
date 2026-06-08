@@ -85,6 +85,18 @@ export async function updateSubmission(
   }
 }
 
+export async function closeBounty(bountyId: string, creatorAddress: string): Promise<void> {
+  const res = await fetch(`${BASE}/api/bounties/${bountyId}/close`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ creatorAddress }),
+  });
+  if (!res.ok) {
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(json.error ?? `API ${res.status}`);
+  }
+}
+
 export async function submitProof(
   bountyId: string,
   sub: ProofSubmission & { walletAddress: string }

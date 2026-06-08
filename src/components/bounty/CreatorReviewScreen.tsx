@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTonConnectUI } from "@tonconnect/ui-react";
 import {
   TonDiamond,
   PeopleIcon,
@@ -14,7 +15,8 @@ import {
   TrophyBountyIcon,
 } from "@/components/icons";
 import { formatTON } from "@/lib/utils";
-import { getSubmissions, updateSubmission } from "@/lib/api";
+import { getSubmissions, updateSubmission, closeBounty } from "@/lib/api";
+import { useWallet } from "@/hooks/useTonWallet";
 import type { Submission, ReviewBounty, SubmissionStatus } from "@/lib/types";
 
 const ICON_MAP = {
@@ -60,15 +62,16 @@ function StatusChip({ status }: { status: SubmissionStatus }) {
 function SubmissionCard({
   sub,
   canApprove,
+  locked,
   onStatusChange,
 }: {
   sub: Submission;
   canApprove: boolean;
-  onStatusChange: (id: string, status: SubmissionStatus) => void;
+  locked: boolean;
+  onStatusChange: (id: string, status: SubmissionStatus) => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
   const shortAddr = sub.walletAddress.slice(0, 6) + "..." + sub.walletAddress.slice(-4);
-  const isLink = sub.proofType === "link";
   const submittedDate = new Date(sub.submittedAt).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -78,11 +81,7 @@ function SubmissionCard({
 
   const handleAction = async (status: SubmissionStatus) => {
     setBusy(true);
-    try {
-      await onStatusChange(sub.id, status);
-    } finally {
-      setBusy(false);
-    }
+    try { await onStatusChange(sub.id, status); } finally { setBusy(false); }
   };
 
   return (
@@ -110,7 +109,7 @@ function SubmissionCard({
         className="rounded-xl p-3 mb-3"
         style={{ background: "#0D0E10", border: "1px solid #1E2127" }}
       >
-        {isLink ? (
+        {sub.proofType === "link" ? (
           <a
             href={sub.content}
             target="_blank"
@@ -127,13 +126,16 @@ function SubmissionCard({
         )}
       </div>
 
-      {sub.status === "pending" && (
+      {!locked && sub.status === "pending" && (
         <div className="flex gap-2">
           <button
             disabled={!canApprove || busy}
             onClick={() => handleAction("approved")}
             className="flex-1 py-2 rounded-xl text-xs font-bold press-scale disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: canApprove && !busy ? "#B5F23A" : "#1A1D22", color: canApprove && !busy ? "#0D0E10" : "#5A6070" }}
+            style={{
+              background: canApprove && !busy ? "#B5F23A" : "#1A1D22",
+              color: canApprove && !busy ? "#0D0E10" : "#5A6070",
+            }}
           >
             {busy ? "..." : canApprove ? "Mark Winner" : "Limit Reached"}
           </button>
@@ -148,7 +150,7 @@ function SubmissionCard({
         </div>
       )}
 
-      {sub.status === "approved" && (
+      {!locked && sub.status === "approved" && (
         <button
           disabled={busy}
           onClick={() => handleAction("rejected")}
@@ -164,12 +166,17 @@ function SubmissionCard({
 
 export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
   const router = useRouter();
+  const [tonConnectUI] = useTonConnectUI();
+  const { rawAddress } = useWallet();
+
   const [bounty, setBounty] = useState<ReviewBounty | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [approvedCount, setApprovedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
+  const [finalizing, setFinalizing] = useState(false);
+  const [finalizeError, setFinalizeError] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -189,18 +196,19 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
   const handleStatusChange = useCallback(
     async (submissionId: string, status: SubmissionStatus) => {
       setActionError("");
+      const prev = submissions.find((s) => s.id === submissionId);
       try {
         await updateSubmission(bountyId, submissionId, status);
-        setSubmissions((prev) =>
-          prev.map((s) => (s.id === submissionId ? { ...s, status } : s))
+        setSubmissions((list) =>
+          list.map((s) => (s.id === submissionId ? { ...s, status } : s))
         );
-        setApprovedCount((c) => {
-          const prev = submissions.find((s) => s.id === submissionId);
-          if (!prev) return c;
-          if (status === "approved" && prev.status !== "approved") return c + 1;
-          if (status !== "approved" && prev.status === "approved") return Math.max(0, c - 1);
-          return c;
-        });
+        if (prev) {
+          setApprovedCount((c) => {
+            if (status === "approved" && prev.status !== "approved") return c + 1;
+            if (status !== "approved" && prev.status === "approved") return Math.max(0, c - 1);
+            return c;
+          });
+        }
       } catch (err) {
         setActionError(err instanceof Error ? err.message : "Action failed.");
       }
@@ -208,7 +216,45 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
     [bountyId, submissions]
   );
 
+  const handleFinalize = useCallback(async () => {
+    if (!bounty || !rawAddress) return;
+    const winners = submissions.filter((s) => s.status === "approved");
+    if (!winners.length) return;
+
+    setFinalizing(true);
+    setFinalizeError("");
+
+    const nanotons = BigInt(Math.round(parseFloat(bounty.perWinnerAmount) * 1e9)).toString();
+
+    try {
+      await tonConnectUI.sendTransaction({
+        validUntil: Math.floor(Date.now() / 1000) + 600,
+        messages: winners.map((w) => ({
+          address: w.walletAddress,
+          amount: nanotons,
+        })),
+      });
+    } catch (txErr) {
+      setFinalizeError(txErr instanceof Error ? txErr.message : "Wallet rejected the transaction.");
+      setFinalizing(false);
+      return;
+    }
+
+    try {
+      await closeBounty(bountyId, rawAddress);
+      setBounty((b) => (b ? { ...b, status: "closed" } : b));
+    } catch (dbErr) {
+      setFinalizeError(
+        `Prizes sent! But the bounty could not be marked as closed: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`
+      );
+    } finally {
+      setFinalizing(false);
+    }
+  }, [bounty, bountyId, rawAddress, submissions, tonConnectUI]);
+
+  const isClosed = bounty?.status === "closed";
   const canApprove = bounty ? approvedCount < bounty.winnerCount : false;
+  const canFinalize = approvedCount > 0 && !isClosed;
   const BountyIcon = bounty ? ICON_MAP[bounty.icon] : null;
 
   return (
@@ -226,7 +272,17 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
             <path d="M15 18L9 12L15 6" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h1 className="text-[15px] font-bold text-[#EAEAEA] flex-1 truncate">Review Submissions</h1>
+        <h1 className="text-[15px] font-bold text-[#EAEAEA] flex-1 truncate">
+          {isClosed ? "Bounty Closed" : "Review Submissions"}
+        </h1>
+        {isClosed && (
+          <span
+            className="px-2.5 py-1 rounded-full text-[10px] font-bold flex-shrink-0"
+            style={{ background: "#B5F23A20", color: "#B5F23A", border: "1px solid #B5F23A40" }}
+          >
+            Closed
+          </span>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto scrollbar-hide px-4" style={{ paddingBottom: 32 }}>
@@ -272,7 +328,7 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
               </div>
 
               <div
-                className="mt-3 flex items-center justify-between rounded-xl px-3 py-2"
+                className="mt-3 rounded-xl px-3 py-2 flex items-center justify-between"
                 style={{ background: "#0D0E10" }}
               >
                 <span className="text-xs text-[#5A6070]">Winners selected</span>
@@ -283,7 +339,63 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
                   {approvedCount} / {bounty.winnerCount}
                 </span>
               </div>
+
+              <div
+                className="mt-2 rounded-xl px-3 py-2 flex items-center justify-between"
+                style={{ background: "#0D0E10" }}
+              >
+                <span className="text-xs text-[#5A6070]">Prize per winner</span>
+                <div className="flex items-center gap-1">
+                  <TonDiamond size={11} />
+                  <span className="text-sm font-bold text-[#B5F23A]">{formatTON(bounty.perWinnerAmount)} TON</span>
+                </div>
+              </div>
             </div>
+
+            {canFinalize && (
+              <div className="mb-4">
+                {approvedCount < bounty.winnerCount && (
+                  <p className="text-[11px] text-[#5A6070] text-center mb-2">
+                    {bounty.winnerCount - approvedCount} winner slot{bounty.winnerCount - approvedCount > 1 ? "s" : ""} still open — you can finalize early
+                  </p>
+                )}
+                <button
+                  disabled={finalizing}
+                  onClick={handleFinalize}
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm text-[#0D0E10] press-scale disabled:opacity-60"
+                  style={{ background: "#B5F23A", boxShadow: "0 0 18px 3px #B5F23A30" }}
+                >
+                  {finalizing
+                    ? "Sending prizes..."
+                    : `Distribute ${formatTON(bounty.perWinnerAmount)} TON to ${approvedCount} winner${approvedCount > 1 ? "s" : ""}`}
+                </button>
+                {finalizeError && (
+                  <div
+                    className="mt-2 rounded-xl px-3 py-2 text-xs"
+                    style={{ background: "#F8717120", color: "#F87171", border: "1px solid #F8717140" }}
+                  >
+                    {finalizeError}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isClosed && (
+              <div
+                className="mb-4 rounded-2xl px-4 py-3 flex items-center gap-3"
+                style={{ background: "#B5F23A15", border: "1px solid #B5F23A40" }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="flex-shrink-0">
+                  <path d="M20 6L9 17L4 12" stroke="#B5F23A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <div>
+                  <p className="text-xs font-bold text-[#B5F23A]">Bounty closed</p>
+                  <p className="text-[11px] text-[#5A6070] mt-0.5">
+                    Prizes have been distributed to {approvedCount} winner{approvedCount !== 1 ? "s" : ""}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {actionError && (
               <div
@@ -316,6 +428,7 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
                   key={s.id}
                   sub={s}
                   canApprove={canApprove || s.status === "approved"}
+                  locked={isClosed}
                   onStatusChange={handleStatusChange}
                 />
               ))

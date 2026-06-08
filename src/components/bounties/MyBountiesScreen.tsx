@@ -51,6 +51,16 @@ function StatusBadge({ status }: { status: UserBounty["status"] }) {
       </div>
     );
   }
+  if (status === "closed") {
+    return (
+      <div
+        className="inline-flex items-center flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold"
+        style={{ background: "#B5F23A15", color: "#B5F23A", border: "1px solid #B5F23A30" }}
+      >
+        Closed
+      </div>
+    );
+  }
   return (
     <div
       className="inline-flex items-center flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold"
@@ -213,10 +223,12 @@ function WalletGate({ onConnect }: { onConnect: () => void }) {
   );
 }
 
+type Tab = "joined" | "created" | "closed";
+
 export function MyBountiesScreen() {
   const { isConnected, rawAddress, connect } = useWallet();
   const router = useRouter();
-  const [role, setRole] = useState<BountyRole>("joined");
+  const [tab, setTab] = useState<Tab>("joined");
   const [allBounties, setAllBounties] = useState<UserBounty[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -231,7 +243,20 @@ export function MyBountiesScreen() {
       .finally(() => setLoading(false));
   }, [isConnected, rawAddress]);
 
-  const bounties = allBounties.filter((b) => b.role === role);
+  const bounties =
+    tab === "joined"
+      ? allBounties.filter((b) => b.role === "joined")
+      : tab === "created"
+      ? allBounties.filter((b) => b.role === "created" && b.status !== "closed")
+      : allBounties.filter((b) => b.role === "created" && b.status === "closed");
+
+  const closedCount = allBounties.filter((b) => b.role === "created" && b.status === "closed").length;
+
+  const TABS: { key: Tab; label: string }[] = [
+    { key: "joined", label: "Participating" },
+    { key: "created", label: "Created" },
+    { key: "closed", label: "Closed" },
+  ];
 
   return (
     <div className="flex flex-col h-full relative">
@@ -248,17 +273,25 @@ export function MyBountiesScreen() {
               className="flex gap-1 p-1 rounded-2xl"
               style={{ background: "#141619", border: "1px solid #1E2127" }}
             >
-              {(["joined", "created"] as const).map((r) => (
+              {TABS.map(({ key, label }) => (
                 <button
-                  key={r}
-                  onClick={() => setRole(r)}
+                  key={key}
+                  onClick={() => setTab(key)}
                   className={cn(
-                    "flex-1 py-2 rounded-xl text-sm font-semibold transition-all duration-200 press-scale",
-                    role === r ? "text-[#EAEAEA]" : "text-[#5A6070]"
+                    "flex-1 py-2 rounded-xl text-xs font-semibold transition-all duration-200 press-scale relative",
+                    tab === key ? "text-[#EAEAEA]" : "text-[#5A6070]"
                   )}
-                  style={role === r ? { background: "#1E2127" } : {}}
+                  style={tab === key ? { background: "#1E2127" } : {}}
                 >
-                  {r === "joined" ? "Participating" : "Created"}
+                  {label}
+                  {key === "closed" && closedCount > 0 && (
+                    <span
+                      className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center"
+                      style={{ background: "#B5F23A", color: "#0D0E10" }}
+                    >
+                      {closedCount}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -275,7 +308,25 @@ export function MyBountiesScreen() {
                 <p className="text-[#5A6070] text-sm font-medium">{error}</p>
               </div>
             ) : bounties.length === 0 ? (
-              <EmptyState role={role} />
+              tab === "closed" ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <div
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                    style={{ background: "#141619", border: "1px solid #1E2127" }}
+                  >
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                      <path d="M9 12L11 14L15 10" stroke="#5A6070" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <rect x="4" y="4" width="16" height="16" rx="3" stroke="#5A6070" strokeWidth="1.5" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-semibold text-[#EAEAEA]">No closed bounties</p>
+                  <p className="text-xs text-[#5A6070] text-center leading-relaxed" style={{ maxWidth: 220 }}>
+                    Bounties you finalize and distribute prizes for will appear here
+                  </p>
+                </div>
+              ) : (
+                <EmptyState role={tab === "joined" ? "joined" : "created"} />
+              )
             ) : (
               bounties.map((b) => (
                 <UserBountyRow

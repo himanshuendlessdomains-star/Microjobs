@@ -1,7 +1,7 @@
 export type WinnerSelection = "draw" | "manual";
 export type BountyType = "task" | "quiz" | "creative";
 export type Category = "All" | "Creative" | "Social" | "Analytics" | "Dev";
-export type BountyStatus = "active" | "ended" | "won";
+export type BountyStatus = "active" | "ended" | "won" | "closed";
 export type BountyRole = "created" | "joined";
 export type NotificationType = "winner" | "deadline" | "submission" | "funded";
 export type ProofType = "text" | "link" | "image";
@@ -87,9 +87,11 @@ export interface ReviewBounty {
   winnerCount: number;
   winnerSelection: WinnerSelection;
   poolAmount: string;
+  perWinnerAmount: string;
   icon: "rocket" | "x" | "chart" | "code" | "star" | "trophy";
   category: Category;
   creatorAddress: string;
+  status: BountyStatus;
 }
 
 export interface SwapTokenInfo {
