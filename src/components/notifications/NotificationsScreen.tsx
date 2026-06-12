@@ -7,13 +7,14 @@ import { useWallet } from "@/hooks/useTonWallet";
 import type { AppNotification, NotificationType } from "@/lib/types";
 
 function NotifIcon({ type }: { type: NotificationType }) {
-  const map: Record<NotificationType, { bg: string; icon: React.ReactNode }> = {
+  const map: Partial<Record<NotificationType, { bg: string; icon: React.ReactNode }>> = {
     winner:     { bg: "bg-lime-subtle", icon: <CheckCircleIcon size={20} /> },
     deadline:   { bg: "bg-amber-50",    icon: <AlarmIcon size={20} /> },
     submission: { bg: "bg-blue-50",     icon: <FileCheckIcon size={20} /> },
     funded:     { bg: "bg-purple-50",   icon: <ZapIcon size={20} /> },
+    refund:     { bg: "bg-blue-50",     icon: <ZapIcon size={20} /> },
   };
-  const { bg, icon } = map[type];
+  const { bg, icon } = map[type] ?? { bg: "bg-surface-tint", icon: <ZapIcon size={20} /> };
   return (
     <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${bg}`}>
       {icon}

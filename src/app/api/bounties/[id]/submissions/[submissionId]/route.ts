@@ -16,13 +16,15 @@ export async function PATCH(
 
     const { data: bounty } = await supabase
       .from("bounties")
-      .select("winner_count")
+      .select("winner_count, title, per_winner_amount")
       .eq("id", params.id)
       .single();
 
     if (!bounty) {
       return NextResponse.json({ error: "Bounty not found" }, { status: 404 });
     }
+
+    const b = bounty as { winner_count: number; title: string; per_winner_amount: number | null };
 
     if (body.status === "approved") {
       const { count } = await supabase
@@ -31,12 +33,24 @@ export async function PATCH(
         .eq("bounty_id", params.id)
         .eq("status", "approved");
 
-      if ((count ?? 0) >= (bounty as { winner_count: number }).winner_count) {
+      if ((count ?? 0) >= b.winner_count) {
         return NextResponse.json(
-          { error: `Winner limit of ${(bounty as { winner_count: number }).winner_count} already reached` },
+          { error: `Winner limit of ${b.winner_count} already reached` },
           { status: 409 }
         );
       }
+    }
+
+    // Fetch the submission so we know the wallet address for the notification
+    const { data: sub } = await supabase
+      .from("submissions")
+      .select("wallet_address, status")
+      .eq("id", params.submissionId)
+      .eq("bounty_id", params.id)
+      .single();
+
+    if (!sub) {
+      return NextResponse.json({ error: "Submission not found" }, { status: 404 });
     }
 
     const { error } = await supabase
@@ -46,6 +60,25 @@ export async function PATCH(
       .eq("bounty_id", params.id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Fire winner-selected notification when approved (non-blocking — ignore failures)
+    if (body.status === "approved" && sub.status !== "approved") {
+      const perWinner = b.per_winner_amount
+        ? Number(b.per_winner_amount).toFixed(2)
+        : null;
+
+      const notifBody = perWinner
+        ? `You've been selected as a winner for "${b.title}". Your prize of ${perWinner} TON will be sent to your wallet once the creator finalizes the bounty.`
+        : `You've been selected as a winner for "${b.title}". Your prize will be sent once the creator finalizes the bounty.`;
+
+      void supabase.from("notifications").insert({
+        wallet_address: sub.wallet_address,
+        type: "winner",
+        title: "You're a winner! 🏆",
+        body: notifBody,
+        read: false,
+      });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {

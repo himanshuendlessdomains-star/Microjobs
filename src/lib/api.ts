@@ -101,6 +101,22 @@ export async function closeBounty(
   }
 }
 
+export async function requestRefund(
+  bountyId: string,
+  creatorAddress: string
+): Promise<{ poolAmount: number }> {
+  const res = await fetch(`${BASE}/api/bounties/${bountyId}/refund`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ creatorAddress }),
+  });
+  if (!res.ok) {
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(json.error ?? `API ${res.status}`);
+  }
+  return res.json() as Promise<{ poolAmount: number }>;
+}
+
 export async function submitProof(
   bountyId: string,
   sub: ProofSubmission & { walletAddress: string }

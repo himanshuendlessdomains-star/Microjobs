@@ -15,7 +15,7 @@ import {
   TrophyBountyIcon,
 } from "@/components/icons";
 import { formatTON, toFriendlyAddress, tonToNanoton } from "@/lib/utils";
-import { getSubmissions, updateSubmission, closeBounty } from "@/lib/api";
+import { getSubmissions, updateSubmission, closeBounty, requestRefund } from "@/lib/api";
 import { useWallet } from "@/hooks/useTonWallet";
 import type { Submission, ReviewBounty, SubmissionStatus } from "@/lib/types";
 
@@ -154,6 +154,9 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
   const [finalizing, setFinalizing] = useState(false);
   const [finalizeError, setFinalizeError] = useState("");
   const [distributeStep, setDistributeStep] = useState<"idle" | "ready" | "signing" | "closing" | "done">("idle");
+  const [refunding, setRefunding] = useState(false);
+  const [refundError, setRefundError] = useState("");
+  const [refundDone, setRefundDone] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -244,10 +247,28 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
     }
   }, [bounty, bountyId, rawAddress, submissions, tonConnectUI]);
 
-  const isClosed = bounty?.status === "closed" || distributeStep === "done";
+  const handleRefund = useCallback(async () => {
+    if (!bounty || !rawAddress) return;
+    setRefunding(true);
+    setRefundError("");
+    try {
+      await requestRefund(bountyId, rawAddress);
+      setBounty((b) => (b ? { ...b, status: "refunded" } : b));
+      setRefundDone(true);
+    } catch (err) {
+      setRefundError(err instanceof Error ? err.message : "Refund request failed.");
+    } finally {
+      setRefunding(false);
+    }
+  }, [bounty, bountyId, rawAddress]);
+
+  const isClosed = bounty?.status === "closed" || bounty?.status === "refunded" || distributeStep === "done" || refundDone;
+  const isRefunded = bounty?.status === "refunded" || refundDone;
   const canApprove = bounty ? approvedCount < bounty.winnerCount : false;
   const canFinalize = approvedCount > 0 && !isClosed;
   const allSlotsReady = bounty ? approvedCount >= bounty.winnerCount : false;
+  // Refund eligible when: no winners selected, bounty isn't already closed/refunded, creator connected
+  const canRefund = !isClosed && approvedCount === 0 && submissions.length === 0 && !!rawAddress;
   const BountyIcon = bounty ? ICON_MAP[bounty.icon] : null;
 
   const distributeLabel = (() => {
@@ -271,9 +292,14 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
             </svg>
           </button>
           <h1 className="font-semibold text-slate-900 flex-1 truncate">
-            {isClosed ? "Bounty Closed" : "Review Submissions"}
+            {isRefunded ? "Bounty Refunded" : isClosed ? "Bounty Closed" : "Review Submissions"}
           </h1>
-          {isClosed && (
+          {isRefunded && (
+            <span className="bg-blue-50 text-blue-600 border border-blue-200 text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0">
+              Refunded
+            </span>
+          )}
+          {isClosed && !isRefunded && (
             <span className="bg-lime-subtle text-lime-dim border border-lime-border text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0">
               Closed
             </span>
@@ -393,19 +419,89 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
               </div>
             )}
 
-            {isClosed && (
+            {isClosed && !isRefunded && (
               <div className="bg-lime-subtle border border-lime-border rounded-2xl p-4 flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                <div className="w-9 h-9 rounded-full bg-lime-DEFAULT flex items-center justify-center flex-shrink-0">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path d="M20 6L9 17L4 12" stroke="#8BBD1E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M20 6L9 17L4 12" stroke="#0D0E12" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-900">Bounty closed</p>
+                  <p className="text-sm font-bold text-slate-900">Bounty fully closed</p>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Prizes have been distributed to {approvedCount} winner{approvedCount !== 1 ? "s" : ""}
+                    Prizes distributed to {approvedCount} winner{approvedCount !== 1 ? "s" : ""}. Winners have been notified.
                   </p>
                 </div>
+              </div>
+            )}
+
+            {isRefunded && (
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" fill="#3B82F6" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Refund initiated</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Your pool of {formatTON(bounty?.poolAmount ?? "0")} TON is being returned to your wallet. You will receive a notification once complete.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Refund claim — shown when bounty has no participation and no winners */}
+            {canRefund && (
+              <div className="mb-4">
+                <div className="bg-white rounded-2xl border border-surface-border shadow-sm p-5 mb-3">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z" fill="#3B82F6" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">No one participated</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Claim back your full bounty pool since there were no submissions.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between bg-surface-tint rounded-xl px-4 py-3">
+                    <span className="text-xs text-slate-500 font-medium">Refund amount</span>
+                    <div className="flex items-center gap-1.5">
+                      <TonDiamond size={13} />
+                      <span className="text-sm font-black text-slate-900">{formatTON(bounty?.poolAmount ?? "0")} TON</span>
+                    </div>
+                  </div>
+                </div>
+
+                {refundError && (
+                  <div className="bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl px-3 py-2 mb-3 leading-relaxed">
+                    {refundError}
+                  </div>
+                )}
+
+                <button
+                  disabled={refunding}
+                  onClick={handleRefund}
+                  className="w-full font-bold py-3.5 rounded-xl press-scale disabled:opacity-60 text-sm flex items-center justify-center gap-2 border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors duration-150"
+                >
+                  {refunding ? (
+                    <>
+                      <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="#3B82F6" strokeWidth="3" strokeDasharray="31 63" />
+                      </svg>
+                      Processing refund...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" fill="#3B82F6" />
+                      </svg>
+                      Claim Refund of {formatTON(bounty?.poolAmount ?? "0")} TON
+                    </>
+                  )}
+                </button>
               </div>
             )}
 

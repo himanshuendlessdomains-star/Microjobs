@@ -51,6 +51,13 @@ function StatusBadge({ status }: { status: UserBounty["status"] }) {
       </span>
     );
   }
+  if (status === "refunded") {
+    return (
+      <span className="inline-flex items-center flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200">
+        Refunded
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold bg-surface-tint text-slate-400 border border-surface-border">
       Ended
@@ -235,10 +242,10 @@ export function MyBountiesScreen() {
     tab === "joined"
       ? allBounties.filter((b) => b.role === "joined")
       : tab === "created"
-      ? allBounties.filter((b) => b.role === "created" && b.status !== "closed")
-      : allBounties.filter((b) => b.role === "created" && b.status === "closed");
+      ? allBounties.filter((b) => b.role === "created" && b.status !== "closed" && b.status !== "refunded")
+      : allBounties.filter((b) => b.role === "created" && (b.status === "closed" || b.status === "refunded"));
 
-  const closedCount = allBounties.filter((b) => b.role === "created" && b.status === "closed").length;
+  const closedCount = allBounties.filter((b) => b.role === "created" && (b.status === "closed" || b.status === "refunded")).length;
 
   const TABS: { key: Tab; label: string }[] = [
     { key: "joined", label: "Participating" },
