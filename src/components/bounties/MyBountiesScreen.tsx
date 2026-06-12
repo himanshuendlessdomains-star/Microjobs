@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BottomNav } from "@/components/layout/BottomNav";
 import {
   TonDiamond,
   ClockIcon,
@@ -32,42 +31,30 @@ const ICON_MAP = {
 function StatusBadge({ status }: { status: UserBounty["status"] }) {
   if (status === "active") {
     return (
-      <div
-        className="inline-flex items-center gap-1.5 flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold"
-        style={{ background: "#B5F23A18", color: "#B5F23A", border: "1px solid #B5F23A40" }}
-      >
-        <span className="w-1.5 h-1.5 rounded-full bg-[#B5F23A]" />
+      <span className="inline-flex items-center gap-1.5 flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold bg-lime-subtle text-lime-dim border border-lime-border">
+        <span className="w-1.5 h-1.5 rounded-full bg-lime" />
         Active
-      </div>
+      </span>
     );
   }
   if (status === "won") {
     return (
-      <div
-        className="inline-flex items-center flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold"
-        style={{ background: "#F59E0B18", color: "#F59E0B", border: "1px solid #F59E0B40" }}
-      >
+      <span className="inline-flex items-center flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold bg-yellow-50 text-yellow-600 border border-yellow-200">
         Won
-      </div>
+      </span>
     );
   }
   if (status === "closed") {
     return (
-      <div
-        className="inline-flex items-center flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold"
-        style={{ background: "#B5F23A15", color: "#B5F23A", border: "1px solid #B5F23A30" }}
-      >
+      <span className="inline-flex items-center flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold bg-white text-lime-dim border border-lime-border">
         Closed
-      </div>
+      </span>
     );
   }
   return (
-    <div
-      className="inline-flex items-center flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold"
-      style={{ background: "#1E2127", color: "#5A6070" }}
-    >
+    <span className="inline-flex items-center flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold bg-surface-tint text-slate-400 border border-surface-border">
       Ended
-    </div>
+    </span>
   );
 }
 
@@ -93,23 +80,17 @@ function UserBountyRow({
   const isUrgent = seconds > 0 && seconds < 3600;
 
   return (
-    <div
-      className="rounded-2xl p-4 mb-3"
-      style={{ background: "#111317", border: "1.5px solid #1E2127" }}
-    >
+    <div className="bg-white rounded-2xl border border-surface-border shadow-sm p-4 mb-3">
       <div className="flex items-start gap-3">
-        <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: "#1A1F14" }}
-        >
+        <div className="w-11 h-11 rounded-xl bg-surface-tint flex items-center justify-center flex-shrink-0">
           <div className="scale-75 origin-center">
             <BountyIcon />
           </div>
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <p className="font-semibold text-sm text-[#EAEAEA] leading-snug line-clamp-1 flex-1">
+          <div className="flex items-start justify-between gap-2 mb-1.5">
+            <p className="font-semibold text-sm text-slate-900 leading-snug line-clamp-1 flex-1">
               {bounty.title}
             </p>
             <StatusBadge status={bounty.status} />
@@ -118,30 +99,30 @@ function UserBountyRow({
           <div className="flex items-center gap-4 mb-1.5">
             <div className="flex items-center gap-1">
               <TonDiamond size={12} />
-              <span className="text-xs font-bold text-[#B5F23A]">{formatTON(bounty.poolAmount)} TON</span>
+              <span className="text-xs font-bold text-lime-dim">{formatTON(bounty.poolAmount)} TON</span>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 text-xs text-slate-400">
               <PeopleIcon size={12} />
-              <span className="text-xs text-[#9CA3AF]">{bounty.participants}</span>
+              <span>{bounty.participants}</span>
             </div>
           </div>
 
           {bounty.status === "active" && (
             <div className="flex items-center gap-1">
-              <ClockIcon size={12} color={isUrgent ? "#F87171" : "#9CA3AF"} />
-              <span className={cn("font-mono text-xs tabular-nums", isUrgent ? "text-red-400" : "text-[#9CA3AF]")}>
+              <ClockIcon size={12} color={isUrgent ? "#F87171" : "#7A8099"} />
+              <span className={cn("font-mono text-xs tabular-nums", isUrgent ? "text-red-400" : "text-slate-400")}>
                 {formatCountdown(seconds)} left
               </span>
             </div>
           )}
           {bounty.status === "won" && (
-            <p className="text-xs font-bold text-[#B5F23A]">Won +{formatTON(bounty.perWinnerAmount)} TON</p>
+            <p className="text-xs font-bold text-lime-dim">Won +{formatTON(bounty.perWinnerAmount)} TON</p>
           )}
           {bounty.status === "ended" && bounty.role === "joined" && (
-            <p className="text-xs text-[#5A6070]">Ended</p>
+            <p className="text-xs text-slate-400">Ended</p>
           )}
           {bounty.status === "ended" && bounty.role === "created" && (
-            <p className="text-xs text-[#5A6070]">
+            <p className="text-xs text-slate-400">
               Ended &middot; {bounty.winnerCount} winner{bounty.winnerCount > 1 ? "s" : ""} selected
             </p>
           )}
@@ -151,10 +132,9 @@ function UserBountyRow({
       {bounty.role === "created" && onReview && (
         <button
           onClick={() => onReview(bounty.id)}
-          className="mt-3 w-full py-2 rounded-xl text-xs font-bold press-scale"
-          style={{ background: "#1A1D22", color: "#B5F23A", border: "1px solid #B5F23A30" }}
+          className="mt-2 text-xs font-semibold text-lime-dim hover:text-text-primary transition-colors duration-150 press-scale"
         >
-          Review Submissions
+          Review Submissions &rarr;
         </button>
       )}
     </div>
@@ -163,29 +143,26 @@ function UserBountyRow({
 
 function EmptyState({ role }: { role: BountyRole }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 gap-3">
-      <div
-        className="w-16 h-16 rounded-2xl flex items-center justify-center"
-        style={{ background: "#141619", border: "1px solid #1E2127" }}
-      >
+    <div className="bg-white rounded-2xl border border-surface-border shadow-sm flex flex-col items-center justify-center py-14 px-6 gap-3 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-surface-tint border border-surface-border flex items-center justify-center">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
           {role === "joined" ? (
             <>
-              <circle cx="11" cy="11" r="7" stroke="#5A6070" strokeWidth="1.5" />
-              <path d="M17 17L21 21" stroke="#5A6070" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="11" cy="11" r="7" stroke="#A8AEBF" strokeWidth="1.5" />
+              <path d="M17 17L21 21" stroke="#A8AEBF" strokeWidth="1.5" strokeLinecap="round" />
             </>
           ) : (
             <>
-              <rect x="5" y="4" width="14" height="17" rx="2" stroke="#5A6070" strokeWidth="1.5" />
-              <path d="M9 9H15M9 13H13" stroke="#5A6070" strokeWidth="1.5" strokeLinecap="round" />
+              <rect x="5" y="4" width="14" height="17" rx="2" stroke="#A8AEBF" strokeWidth="1.5" />
+              <path d="M9 9H15M9 13H13" stroke="#A8AEBF" strokeWidth="1.5" strokeLinecap="round" />
             </>
           )}
         </svg>
       </div>
-      <p className="text-sm font-semibold text-[#EAEAEA]">
+      <p className="text-lg font-bold text-slate-900">
         {role === "joined" ? "No bounties joined yet" : "No bounties created yet"}
       </p>
-      <p className="text-xs text-[#5A6070] text-center leading-relaxed" style={{ maxWidth: 220 }}>
+      <p className="text-sm text-slate-500 leading-relaxed" style={{ maxWidth: 260 }}>
         {role === "joined"
           ? "Browse Discover to find bounties and start earning TON"
           : "Create your first bounty using the + button on Discover"}
@@ -194,28 +171,39 @@ function EmptyState({ role }: { role: BountyRole }) {
   );
 }
 
+function ClosedEmptyState() {
+  return (
+    <div className="bg-white rounded-2xl border border-surface-border shadow-sm flex flex-col items-center justify-center py-14 px-6 gap-3 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-surface-tint border border-surface-border flex items-center justify-center">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+          <path d="M9 12L11 14L15 10" stroke="#A8AEBF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <rect x="4" y="4" width="16" height="16" rx="3" stroke="#A8AEBF" strokeWidth="1.5" />
+        </svg>
+      </div>
+      <p className="text-lg font-bold text-slate-900">No closed bounties</p>
+      <p className="text-sm text-slate-500 leading-relaxed" style={{ maxWidth: 260 }}>
+        Bounties you finalize and distribute prizes for will appear here
+      </p>
+    </div>
+  );
+}
+
 function WalletGate({ onConnect }: { onConnect: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center flex-1 px-8 gap-5">
+    <div className="bg-white rounded-3xl shadow-md p-10 text-center flex flex-col items-center mt-6">
       <div
-        className="w-20 h-20 rounded-3xl flex items-center justify-center"
-        style={{
-          background: "linear-gradient(135deg, #1A2409 0%, #232E0F 100%)",
-          border: "2px solid #B5F23A30",
-        }}
+        className="w-20 h-20 rounded-3xl bg-surface-tint flex items-center justify-center"
+        style={{ boxShadow: "0 0 20px 4px rgba(181,242,58,0.25)" }}
       >
-        <TonDiamond size={32} />
+        <TonDiamond size={48} />
       </div>
-      <div className="text-center">
-        <p className="text-lg font-bold text-[#EAEAEA] mb-2">Connect your wallet</p>
-        <p className="text-sm text-[#9CA3AF] leading-relaxed">
-          Connect your TON wallet to view the bounties you&apos;ve joined and created.
-        </p>
-      </div>
+      <h2 className="text-xl font-bold text-slate-900 mt-4">Connect Wallet</h2>
+      <p className="text-slate-500 text-sm mt-2 leading-relaxed" style={{ maxWidth: 280 }}>
+        Connect your TON wallet to view the bounties you&apos;ve joined and created.
+      </p>
       <button
         onClick={onConnect}
-        className="w-full py-3.5 rounded-2xl font-bold text-sm text-[#0D0E10] press-scale"
-        style={{ background: "#B5F23A", boxShadow: "0 0 18px 3px #B5F23A30" }}
+        className="mt-6 w-full max-w-xs bg-lime text-dark font-bold rounded-xl py-3 px-5 text-sm press-scale"
       >
         Connect Wallet
       </button>
@@ -259,71 +247,48 @@ export function MyBountiesScreen() {
   ];
 
   return (
-    <div className="flex flex-col h-full relative">
-      <header className="px-5 pt-6 pb-4 flex-shrink-0">
-        <h1 className="text-[17px] font-bold text-[#EAEAEA] text-center">My Bounties</h1>
-      </header>
+    <div className="min-h-screen px-4 py-6 md:py-8 pb-20 md:pb-8">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-2xl font-black tracking-tight text-slate-900">My Bounties</h1>
 
-      {!isConnected ? (
-        <WalletGate onConnect={connect} />
-      ) : (
-        <>
-          <div className="px-4 mb-4 flex-shrink-0">
-            <div
-              className="flex gap-1 p-1 rounded-2xl"
-              style={{ background: "#141619", border: "1px solid #1E2127" }}
-            >
+        {!isConnected ? (
+          <WalletGate onConnect={connect} />
+        ) : (
+          <>
+            <div className="mt-4 mb-5 bg-white border border-surface-border rounded-2xl p-1 flex gap-1 shadow-sm">
               {TABS.map(({ key, label }) => (
                 <button
                   key={key}
                   onClick={() => setTab(key)}
                   className={cn(
-                    "flex-1 py-2 rounded-xl text-xs font-semibold transition-all duration-200 press-scale relative",
-                    tab === key ? "text-[#EAEAEA]" : "text-[#5A6070]"
+                    "flex-1 py-2 rounded-xl text-sm transition-colors duration-150 press-scale relative",
+                    tab === key
+                      ? "bg-lime text-dark font-bold"
+                      : "text-slate-500 font-medium hover:bg-surface-tint"
                   )}
-                  style={tab === key ? { background: "#1E2127" } : {}}
                 >
                   {label}
                   {key === "closed" && closedCount > 0 && (
-                    <span
-                      className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center"
-                      style={{ background: "#B5F23A", color: "#0D0E10" }}
-                    >
+                    <span className="absolute top-0 right-0 w-4 h-4 rounded-full bg-lime text-dark text-[9px] font-bold flex items-center justify-center">
                       {closedCount}
                     </span>
                   )}
                 </button>
               ))}
             </div>
-          </div>
 
-          <div className="flex-1 overflow-y-auto scrollbar-hide px-4" style={{ paddingBottom: 90 }}>
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <SpinnerIcon size={28} />
               </div>
             ) : error ? (
-              <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <div className="bg-white rounded-2xl border border-surface-border shadow-sm flex flex-col items-center justify-center py-14 gap-3 text-center">
                 <span className="text-3xl">⚠️</span>
-                <p className="text-[#5A6070] text-sm font-medium">{error}</p>
+                <p className="text-slate-500 text-sm font-medium">{error}</p>
               </div>
             ) : bounties.length === 0 ? (
               tab === "closed" ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <div
-                    className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                    style={{ background: "#141619", border: "1px solid #1E2127" }}
-                  >
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                      <path d="M9 12L11 14L15 10" stroke="#5A6070" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      <rect x="4" y="4" width="16" height="16" rx="3" stroke="#5A6070" strokeWidth="1.5" />
-                    </svg>
-                  </div>
-                  <p className="text-sm font-semibold text-[#EAEAEA]">No closed bounties</p>
-                  <p className="text-xs text-[#5A6070] text-center leading-relaxed" style={{ maxWidth: 220 }}>
-                    Bounties you finalize and distribute prizes for will appear here
-                  </p>
-                </div>
+                <ClosedEmptyState />
               ) : (
                 <EmptyState role={tab === "joined" ? "joined" : "created"} />
               )
@@ -336,11 +301,9 @@ export function MyBountiesScreen() {
                 />
               ))
             )}
-          </div>
-        </>
-      )}
-
-      <BottomNav />
+          </>
+        )}
+      </div>
     </div>
   );
 }

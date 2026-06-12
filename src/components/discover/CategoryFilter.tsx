@@ -12,7 +12,7 @@ interface CategoryFilterProps {
 
 export function CategoryFilter({ active, onChange }: CategoryFilterProps) {
   return (
-    <div className="flex gap-2 px-4 mb-5 overflow-x-auto scrollbar-hide">
+    <div className="flex gap-2 overflow-x-auto scrollbar-hide">
       {CATEGORIES.map((cat) => {
         const isActive = cat === active;
         return (
@@ -20,10 +20,10 @@ export function CategoryFilter({ active, onChange }: CategoryFilterProps) {
             key={cat}
             onClick={() => onChange(cat)}
             className={cn(
-              "flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-150 press-scale",
+              "flex-shrink-0 text-sm px-4 py-2 rounded-full press-scale transition-colors whitespace-nowrap",
               isActive
-                ? "bg-lime text-[#0D0E10]"
-                : "text-[#9CA3AF] border border-[#1E2127] bg-[#141619] hover:border-[#2E333D]"
+                ? "bg-lime text-dark font-bold"
+                : "bg-white border border-surface-border text-slate-500 hover:bg-surface-tint hover:border-surface-hover font-semibold"
             )}
           >
             {cat}

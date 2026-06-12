@@ -4,8 +4,9 @@
 
 :root {
   --lime: #B5F23A;
-  --dark-bg: #0D0E10;
-  --dark-card: #111317;
+  --surface-page: #F2F4FA;
+  --surface-card: #FFFFFF;
+  --dark-bg: #0D0E12;
 }
 
 * {
@@ -15,8 +16,8 @@
 
 html,
 body {
-  background: #070809;
-  color: #EAEAEA;
+  background: #F2F4FA;
+  color: #0D0E12;
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   overscroll-behavior: none;
 }
@@ -28,6 +29,13 @@ body {
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+@layer components {
+  /* Frosted glass surface for overlays and floating bars */
+  .glass {
+    @apply backdrop-blur-md bg-white/80 border border-white/30;
+  }
 }
 
 @layer utilities {

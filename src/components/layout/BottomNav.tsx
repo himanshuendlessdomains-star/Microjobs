@@ -5,22 +5,29 @@ import { CompassIcon, ClipboardIcon, BellIcon, UserIcon } from "@/components/ico
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { key: "discover",      label: "Discover",       Icon: CompassIcon,   href: "/" },
-  { key: "bounties",      label: "My Bounties",    Icon: ClipboardIcon, href: "/bounties" },
-  { key: "notifications", label: "Notifications",  Icon: BellIcon,      href: "/notifications" },
-  { key: "profile",       label: "Profile",        Icon: UserIcon,      href: "/profile" },
+  { key: "discover",      label: "Discover",      Icon: CompassIcon,   href: "/" },
+  { key: "bounties",      label: "My Bounties",   Icon: ClipboardIcon, href: "/bounties" },
+  { key: "notifications", label: "Notifications", Icon: BellIcon,      href: "/notifications" },
+  { key: "profile",       label: "Profile",       Icon: UserIcon,      href: "/profile" },
 ] as const;
 
+/**
+ * BottomNav — mobile-only tab bar (hidden at md and above).
+ * Frosted light glass bar fixed to the bottom of the viewport.
+ * Rendered by AppLayout — screens must never render this directly.
+ */
 export function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
 
   return (
     <nav
-      className="absolute bottom-0 left-0 right-0 flex items-center justify-around px-1 pt-3 pb-7"
+      className="md:hidden fixed bottom-0 left-0 right-0 flex items-center justify-around px-2 z-50"
       style={{
-        background: "linear-gradient(to top, #0D0E10 85%, transparent)",
-        borderTop: "1px solid #1A1D22",
+        background: "rgba(255,255,255,0.95)",
+        backdropFilter: "blur(12px)",
+        borderTop: "1px solid #E0E4F0",
+        height: 72,
       }}
     >
       {TABS.map(({ key, label, Icon, href }) => {
@@ -29,19 +36,29 @@ export function BottomNav() {
           <button
             key={key}
             onClick={() => router.push(href)}
-            className={cn(
-              "flex flex-col items-center gap-1.5 px-3 press-scale",
-              "transition-opacity duration-150",
-              isActive ? "opacity-100" : "opacity-60 hover:opacity-80"
-            )}
+            className="flex flex-col items-center gap-1 py-2 px-3 press-scale"
           >
-            <Icon
-              active={isActive}
-              {...(key === "notifications" ? { dot: true } : {})}
-            />
             <span
-              className="text-[10px] font-semibold tracking-wide"
-              style={{ color: isActive ? "#B5F23A" : "#5A6070" }}
+              className="rounded-full"
+              style={{
+                width: 4,
+                height: 4,
+                background: isActive ? "#B5F23A" : "transparent",
+              }}
+            />
+            <span className={cn(!isActive && "opacity-50")}>
+              <Icon
+                active={isActive}
+                {...(key === "notifications" ? { dot: isActive } : {})}
+              />
+            </span>
+            <span
+              className={cn(
+                "text-[10px] tracking-wide",
+                isActive
+                  ? "text-lime font-semibold"
+                  : "text-slate-500 font-medium"
+              )}
             >
               {label}
             </span>

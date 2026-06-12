@@ -1,10 +1,5 @@
-import { PhoneFrame } from "@/components/layout/PhoneFrame";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { DiscoverScreen } from "@/components/discover/DiscoverScreen";
-
 export default function Home() {
-  return (
-    <PhoneFrame>
-      <DiscoverScreen />
-    </PhoneFrame>
-  );
+  return <AppLayout><DiscoverScreen /></AppLayout>;
 }

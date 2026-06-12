@@ -127,10 +127,10 @@ export function ClipboardIcon({ active = false }: { active?: boolean }) {
   );
 }
 
-export function BellIcon({ active = false, dot = true }: { active?: boolean; dot?: boolean }) {
-  const c = active ? LIME : MUTED;
+export function BellIcon({ active = false, dot = true, size = 22, color }: { active?: boolean; dot?: boolean; size?: number; color?: string }) {
+  const c = color ?? (active ? LIME : MUTED);
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path d="M6 10C6 6.686 8.686 4 12 4C15.314 4 18 6.686 18 10V17H6V10Z" stroke={c} strokeWidth="2" />
       <path d="M10 17C10 18.105 10.895 19 12 19C13.105 19 14 18.105 14 17" stroke={c} strokeWidth="2" />
       {dot && <circle cx="17" cy="5" r="3" fill={LIME} />}

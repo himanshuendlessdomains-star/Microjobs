@@ -49,27 +49,20 @@ export function ProofSubmitModal({ bountyId, bountyTitle, onClose, onSubmit }: P
 
   if (submitted) {
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.72)" }}>
-        <div
-          className="w-full max-w-[390px] rounded-t-3xl p-6 flex flex-col items-center gap-4"
-          style={{ background: "#111317", border: "1px solid #1E2127" }}
-        >
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center mt-2"
-            style={{ background: "#B5F23A1A", border: "1.5px solid #B5F23A40" }}
-          >
-            <CheckIcon size={30} color="#B5F23A" />
+      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mt-2 bg-lime-subtle border border-lime-border">
+            <CheckIcon size={30} color="#8BBD1E" />
           </div>
-          <p className="text-lg font-bold text-[#EAEAEA] text-center">Proof Submitted!</p>
-          <p className="text-sm text-[#9CA3AF] text-center leading-relaxed">
+          <p className="text-lg font-bold text-slate-900 text-center">Proof Submitted!</p>
+          <p className="text-sm text-slate-500 text-center leading-relaxed">
             Your submission for{" "}
-            <span className="text-[#EAEAEA] font-semibold">&ldquo;{bountyTitle}&rdquo;</span>{" "}
+            <span className="text-slate-900 font-semibold">&ldquo;{bountyTitle}&rdquo;</span>{" "}
             has been recorded. You&apos;ll be notified when winners are selected.
           </p>
           <button
             onClick={onClose}
-            className="w-full py-3.5 rounded-2xl font-bold text-[#0D0E10] press-scale mt-2"
-            style={{ background: "#B5F23A" }}
+            className="w-full py-3 rounded-xl font-bold bg-lime text-dark press-scale mt-2"
           >
             Done
           </button>
@@ -80,41 +73,28 @@ export function ProofSubmitModal({ bountyId, bountyTitle, onClose, onSubmit }: P
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ background: "rgba(0,0,0,0.72)" }}
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div
-        className="w-full max-w-[390px] rounded-t-3xl pb-6"
-        style={{ background: "#111317", border: "1px solid #1E2127" }}
-      >
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full" style={{ background: "#2E333D" }} />
-        </div>
-
+      <div className="bg-white rounded-3xl shadow-xl w-full max-w-md p-6">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3">
-          <p className="font-bold text-base text-[#EAEAEA]">Submit Proof</p>
-          <button onClick={onClose} className="text-[#9CA3AF] text-sm font-semibold press-scale">Cancel</button>
+        <div className="flex items-center justify-between mb-5">
+          <p className="font-bold text-lg text-slate-900">Submit Proof</p>
+          <button onClick={onClose} className="text-slate-500 text-sm font-semibold press-scale">Cancel</button>
         </div>
 
-        <div className="px-5 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           {/* Proof type selector */}
-          <div
-            className="flex gap-2 p-1 rounded-xl"
-            style={{ background: "#0D0E10", border: "1px solid #1E2127" }}
-          >
+          <div className="flex gap-2">
             {PROOF_TYPES.map((pt) => (
               <button
                 key={pt.type}
                 onClick={() => { setProofType(pt.type); setContent(""); }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold press-scale transition-all"
-                style={{
-                  background: proofType === pt.type ? "#1A1D22" : "transparent",
-                  color: proofType === pt.type ? "#B5F23A" : "#5A6070",
-                  border: proofType === pt.type ? "1px solid #B5F23A30" : "1px solid transparent",
-                }}
+                className={
+                  proofType === pt.type
+                    ? "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold bg-lime text-dark press-scale transition-all"
+                    : "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold border border-surface-border text-slate-500 press-scale transition-all hover:bg-surface-hover"
+                }
               >
                 {pt.icon}
                 {pt.label}
@@ -124,7 +104,7 @@ export function ProofSubmitModal({ bountyId, bountyTitle, onClose, onSubmit }: P
 
           {/* Content input */}
           <div>
-            <label className="text-xs font-semibold text-[#5A6070] uppercase tracking-wide mb-1.5 block">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">
               {proofType === "text" ? "Your Submission" : proofType === "link" ? "Submission URL" : "Image URL"}
             </label>
             {proofType === "text" ? (
@@ -133,13 +113,7 @@ export function ProofSubmitModal({ bountyId, bountyTitle, onClose, onSubmit }: P
                 onChange={(e) => setContent(e.target.value)}
                 placeholder={active.placeholder}
                 rows={5}
-                className="w-full px-4 py-3 rounded-xl text-sm text-[#EAEAEA] resize-none outline-none"
-                style={{
-                  background: "#0D0E10",
-                  border: "1px solid #1E2127",
-                  color: "#EAEAEA",
-                  lineHeight: "1.6",
-                }}
+                className="w-full px-4 py-3 rounded-xl text-sm text-slate-900 placeholder:text-slate-300 resize-none outline-none border border-surface-border focus:border-lime transition-colors leading-relaxed bg-white"
               />
             ) : (
               <input
@@ -147,19 +121,14 @@ export function ProofSubmitModal({ bountyId, bountyTitle, onClose, onSubmit }: P
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder={active.placeholder}
-                className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                style={{
-                  background: "#0D0E10",
-                  border: "1px solid #1E2127",
-                  color: "#EAEAEA",
-                }}
+                className="w-full px-4 py-3 rounded-xl text-sm text-slate-900 placeholder:text-slate-300 outline-none border border-surface-border focus:border-lime transition-colors bg-white"
               />
             )}
           </div>
 
           {/* Optional notes */}
           <div>
-            <label className="text-xs font-semibold text-[#5A6070] uppercase tracking-wide mb-1.5 block">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">
               Notes (optional)
             </label>
             <input
@@ -167,12 +136,7 @@ export function ProofSubmitModal({ bountyId, bountyTitle, onClose, onSubmit }: P
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Any additional context for the reviewer..."
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-              style={{
-                background: "#0D0E10",
-                border: "1px solid #1E2127",
-                color: "#EAEAEA",
-              }}
+              className="w-full px-4 py-3 rounded-xl text-sm text-slate-900 placeholder:text-slate-300 outline-none border border-surface-border focus:border-lime transition-colors bg-white"
             />
           </div>
 
@@ -180,12 +144,11 @@ export function ProofSubmitModal({ bountyId, bountyTitle, onClose, onSubmit }: P
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="w-full py-3.5 rounded-2xl font-bold text-sm press-scale transition-all"
-            style={{
-              background: canSubmit ? "#B5F23A" : "#1A1D22",
-              color: canSubmit ? "#0D0E10" : "#5A6070",
-              border: canSubmit ? "none" : "1px solid #2E333D",
-            }}
+            className={
+              canSubmit
+                ? "w-full py-3 rounded-xl font-bold text-sm bg-lime text-dark press-scale transition-all"
+                : "w-full py-3 rounded-xl font-bold text-sm bg-surface-tint text-slate-300 border border-surface-border transition-all"
+            }
           >
             Submit Proof
           </button>

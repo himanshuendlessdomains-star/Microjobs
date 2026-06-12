@@ -1,6 +1,7 @@
 import { Omniston } from "@ston-fi/omniston-sdk";
 import type { Quote, QuoteRequest, BuildTonSwapRequest, TonTransaction } from "@ston-fi/omniston-sdk";
 import type { SwapTokenInfo } from "./types";
+import { toFriendlyAddress } from "./utils";
 
 export const omniston = new Omniston({
   apiUrl: "wss://omni-ws.ston.fi",
@@ -9,49 +10,6 @@ export const omniston = new Omniston({
 // ---------------------------------------------------------------------------
 // Address helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Convert a raw TON address (workchain:hex64) to the user-friendly base64url
- * format required by TonConnect (EQ... for bounceable, UQ... for wallets).
- * If the address is already in friendly format it is returned unchanged.
- */
-function toFriendlyAddress(addr: string, bounceable = true): string {
-  if (!addr) return addr;
-  // Already in friendly format — 48-char base64url string
-  if (/^[A-Za-z0-9_-]{48}$/.test(addr)) return addr;
-
-  // Raw format: "workchain:hexaddr"
-  const m = addr.match(/^(-?\d+):([0-9a-fA-F]{64})$/);
-  if (!m) return addr; // unknown format, pass through unchanged
-
-  const workchain = parseInt(m[1], 10);
-  const hexAddr = m[2];
-  const buf = new Uint8Array(36);
-
-  // Flag byte: bounceable mainnet = 0x11, non-bounceable mainnet = 0x51
-  buf[0] = bounceable ? 0x11 : 0x51;
-  buf[1] = workchain & 0xff;
-  for (let i = 0; i < 32; i++) {
-    buf[2 + i] = parseInt(hexAddr.slice(i * 2, i * 2 + 2), 16);
-  }
-
-  // CRC16-CCITT over the first 34 bytes
-  let crc = 0;
-  for (let i = 0; i < 34; i++) {
-    crc ^= buf[i] << 8;
-    for (let j = 0; j < 8; j++) {
-      crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) : crc << 1;
-      crc &= 0xffff;
-    }
-  }
-  buf[34] = (crc >> 8) & 0xff;
-  buf[35] = crc & 0xff;
-
-  // Encode as URL-safe base64 (the standard TON friendly address format)
-  let binary = "";
-  for (let i = 0; i < 36; i++) binary += String.fromCharCode(buf[i]);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
 
 // ---------------------------------------------------------------------------
 // BOC encoding helper

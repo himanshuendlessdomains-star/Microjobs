@@ -1,10 +1,5 @@
-import { PhoneFrame } from "@/components/layout/PhoneFrame";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { MyBountiesScreen } from "@/components/bounties/MyBountiesScreen";
-
 export default function BountiesPage() {
-  return (
-    <PhoneFrame>
-      <MyBountiesScreen />
-    </PhoneFrame>
-  );
+  return <AppLayout><MyBountiesScreen /></AppLayout>;
 }

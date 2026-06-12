@@ -1,10 +1,5 @@
-import { PhoneFrame } from "@/components/layout/PhoneFrame";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { BountyDetailScreen } from "@/components/bounty/BountyDetailScreen";
-
-export default function BountyDetailPage({ params }: { params: { id: string } }) {
-  return (
-    <PhoneFrame>
-      <BountyDetailScreen bountyId={params.id} />
-    </PhoneFrame>
-  );
+export default async function BountyPage({ params }: { params: { id: string } }) {
+  return <AppLayout><BountyDetailScreen bountyId={params.id} /></AppLayout>;
 }

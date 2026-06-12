@@ -1,10 +1,5 @@
-import { PhoneFrame } from "@/components/layout/PhoneFrame";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { NotificationsScreen } from "@/components/notifications/NotificationsScreen";
-
 export default function NotificationsPage() {
-  return (
-    <PhoneFrame>
-      <NotificationsScreen />
-    </PhoneFrame>
-  );
+  return <AppLayout><NotificationsScreen /></AppLayout>;
 }

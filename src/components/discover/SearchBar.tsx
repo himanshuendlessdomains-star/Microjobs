@@ -1,44 +1,60 @@
 "use client";
 
 import { SearchIcon, SlidersIcon } from "@/components/icons";
+import { cn } from "@/lib/utils";
 
 interface SearchBarProps {
   value: string;
   onChange: (v: string) => void;
+  dark?: boolean;
 }
 
-export function SearchBar({ value, onChange }: SearchBarProps) {
+export function SearchBar({ value, onChange, dark = false }: SearchBarProps) {
   return (
-    <div className="px-4 mb-4">
-      <div
-        className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-        style={{ background: "#141619", border: "1px solid #1E2127" }}
-      >
-        <SearchIcon />
+    <div
+      className={cn(
+        "flex items-center gap-2 h-11 px-4 rounded-2xl",
+        dark
+          ? "bg-white/10 border border-white/20 backdrop-blur-sm"
+          : "bg-white border border-surface-border"
+      )}
+    >
+      <SearchIcon size={18} color={dark ? "rgba(255,255,255,0.5)" : "#A8AEBF"} />
 
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Search bounties..."
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-[#3A3F4A] text-[#C8CDD8]"
-        />
-
-        {value && (
-          <button
-            onClick={() => onChange("")}
-            className="text-[#5A6070] hover:text-[#9CA3AF] transition-colors text-xs font-medium px-1"
-          >
-            Clear
-          </button>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search bounties..."
+        className={cn(
+          "flex-1 min-w-0 bg-transparent text-sm outline-none",
+          dark
+            ? "text-white placeholder:text-white/50"
+            : "text-slate-900 placeholder:text-slate-300"
         )}
+      />
 
-        <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: "#1E2127" }}
+      {value && (
+        <button
+          onClick={() => onChange("")}
+          className={cn(
+            "text-xs font-medium px-1 transition-colors",
+            dark
+              ? "text-white/50 hover:text-white/80"
+              : "text-slate-300 hover:text-slate-500"
+          )}
         >
-          <SlidersIcon />
-        </div>
+          Clear
+        </button>
+      )}
+
+      <div
+        className={cn(
+          "w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0",
+          dark ? "bg-white/10" : "bg-surface-tint"
+        )}
+      >
+        <SlidersIcon size={16} color={dark ? "rgba(255,255,255,0.7)" : "#7A8099"} />
       </div>
     </div>
   );

@@ -6,7 +6,11 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const body = (await request.json()) as { creatorAddress: string };
+    const body = (await request.json()) as {
+      creatorAddress: string;
+      winnerCount?: number;
+      txBoc?: string;
+    };
 
     if (!body.creatorAddress) {
       return NextResponse.json({ error: "creatorAddress is required" }, { status: 400 });
@@ -32,12 +36,26 @@ export async function POST(
       return NextResponse.json({ ok: true });
     }
 
+    const update: Record<string, unknown> = { status: "closed" };
+    if (body.txBoc) update.prize_tx_boc = body.txBoc;
+
     const { error } = await supabase
       .from("bounties")
-      .update({ status: "closed" })
+      .update(update)
       .eq("id", params.id);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      // If prize_tx_boc column doesn't exist yet, retry without it
+      if (error.code === "42703" || error.message?.includes("prize_tx_boc")) {
+        const { error: retryErr } = await supabase
+          .from("bounties")
+          .update({ status: "closed" })
+          .eq("id", params.id);
+        if (retryErr) return NextResponse.json({ error: retryErr.message }, { status: 500 });
+        return NextResponse.json({ ok: true });
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {

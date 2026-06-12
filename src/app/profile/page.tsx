@@ -1,10 +1,5 @@
-import { PhoneFrame } from "@/components/layout/PhoneFrame";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { ProfileScreen } from "@/components/profile/ProfileScreen";
-
 export default function ProfilePage() {
-  return (
-    <PhoneFrame>
-      <ProfileScreen />
-    </PhoneFrame>
-  );
+  return <AppLayout><ProfileScreen /></AppLayout>;
 }
