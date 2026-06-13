@@ -40,9 +40,25 @@ BountyHive is a full-stack web application for creating and completing on-chain 
 - Winner notifications sent the moment a submission is approved
 
 ### Refund Claim
-- If a bounty closes with zero submissions (no participation), the creator sees a "Claim Refund" card
-- Single-tap refund request marks the bounty as closed and notifies the creator
+- Creators can claim a refund when a bounty expires with no approved winners
+- Works for both zero-participation bounties and bounties where all submissions were rejected
+- Single-tap refund request in My Bounties marks the bounty as closed and sends a notification
 - Blocked if any submissions have been approved (winners already selected)
+
+### Platform Escrow Transparency
+- Live stats bar on the homepage shows open bounties, total escrow locked, claimable funds, prizes distributed, and closed count
+- Escrow wallet address displayed publicly with a direct link to the TON blockchain explorer
+- All figures pulled in real time from the DB — no stale cached numbers
+
+### Referral System
+- Every wallet gets a shareable referral link at `/ref/[walletAddress]`
+- Referral codes are stored in the browser on landing and recorded in DB on wallet connect
+- Referral count shown on the profile page
+
+### Profile Stats (real DB data)
+- Bounties created, bounties won, TON earned — all aggregated live from DB
+- Referral count from the referrals table
+- Functional share, notifications, and about buttons
 
 ### Notifications
 - Real-time notification feed per wallet address
@@ -120,17 +136,19 @@ Create `.env.local` at the project root. Never commit this file.
 
 ```bash
 # Supabase — use the service role key (bypasses RLS, server-side only)
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # TonConnect — must be publicly accessible
 NEXT_PUBLIC_TON_CONNECT_MANIFEST_URL=https://yourdomain.com/tonconnect-manifest.json
 
-# Optional: escrow address for entry fee collection
-NEXT_PUBLIC_ESCROW_ADDRESS=EQYourEscrowAddressHere
+# Public — safe to expose to browser
+NEXT_PUBLIC_APP_URL=https://yourdomain.com
+NEXT_PUBLIC_API_URL=
+NEXT_PUBLIC_ESCROW_ADDRESS=EQAZcvomHFthXG_J8Zagq-K754zUikPj5VCYtLGtUEXOJ2k6
 ```
 
-The `SUPABASE_SERVICE_ROLE_KEY` is used only in server-side API routes and must never be exposed to the browser.
+`SUPABASE_SERVICE_ROLE_KEY` is used only in server-side API routes and must never be exposed to the browser. `NEXT_PUBLIC_ESCROW_ADDRESS` is the wallet shown on the homepage stats bar — replace it with your deployed BountyEscrow contract address for production.
 
 ---
 
@@ -177,30 +195,59 @@ notifications (
   created_at timestamptz
 )
 
+referrals (
+  id uuid primary key default gen_random_uuid(),
+  referrer_address text not null,   -- raw 0:hex wallet address
+  referred_address text not null,   -- raw 0:hex wallet address
+  created_at timestamptz default now(),
+  unique(referred_address)          -- each wallet can only be referred once
+)
+```
+
+Run these SQL statements once in your Supabase SQL editor to set up constraints:
+
+```sql
+-- Ensure bounties status constraint allows both values
+ALTER TABLE bounties DROP CONSTRAINT IF EXISTS bounties_status_check;
+ALTER TABLE bounties ADD CONSTRAINT bounties_status_check
+  CHECK (status IN ('active', 'closed'));
+
+-- Create referrals table if it does not exist
+CREATE TABLE IF NOT EXISTS referrals (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  referrer_address TEXT NOT NULL,
+  referred_address TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(referred_address)
+);
+
 -- Optional: increment_participants RPC function
-create or replace function increment_participants(bounty_id uuid)
-returns void as $$
-  update bounties set participants = participants + 1 where id = bounty_id;
-$$ language sql;
+CREATE OR REPLACE FUNCTION increment_participants(bounty_id uuid)
+RETURNS void AS $$
+  UPDATE bounties SET participants = participants + 1 WHERE id = bounty_id;
+$$ LANGUAGE sql;
 ```
 
 ---
 
 ## API Routes
 
-| Method | Path                                               | Description                              |
-| ------ | -------------------------------------------------- | ---------------------------------------- |
-| GET    | `/api/bounties`                                    | List active bounties (filter/search)     |
-| POST   | `/api/bounties`                                    | Create a new bounty                      |
-| GET    | `/api/bounties/[id]`                               | Get single bounty by ID                  |
-| POST   | `/api/bounties/[id]/participate`                   | Submit proof (creator-guard, dup-guard)  |
-| POST   | `/api/bounties/[id]/close`                         | Close bounty and fire prize notifications|
-| POST   | `/api/bounties/[id]/refund`                        | Refund pool when no participants         |
-| GET    | `/api/bounties/[id]/submissions`                   | Get review data for creator              |
-| PATCH  | `/api/bounties/[id]/submissions/[submissionId]`    | Approve or reject a submission           |
-| GET    | `/api/users/[address]/bounties`                    | Get all bounties for a wallet            |
-| GET    | `/api/users/[address]/notifications`               | Get notifications for a wallet           |
-| POST   | `/api/users/[address]/notifications/read-all`      | Mark all notifications as read           |
+| Method | Path                                               | Description                                         |
+| ------ | -------------------------------------------------- | --------------------------------------------------- |
+| GET    | `/api/bounties`                                    | List active bounties (filter/search, force-dynamic) |
+| POST   | `/api/bounties`                                    | Create a new bounty                                 |
+| GET    | `/api/bounties/[id]`                               | Get single bounty — real count + winner wallets     |
+| POST   | `/api/bounties/[id]/participate`                   | Submit proof (creator-guard, dup-guard)             |
+| POST   | `/api/bounties/[id]/close`                         | Close bounty and fire prize notifications           |
+| POST   | `/api/bounties/[id]/refund`                        | Refund pool (requires 0 approved winners)           |
+| GET    | `/api/bounties/[id]/submissions`                   | Get review data for creator                         |
+| PATCH  | `/api/bounties/[id]/submissions/[submissionId]`    | Approve or reject a submission (creatorAddress auth)|
+| GET    | `/api/stats`                                       | Platform stats — escrow, claimable, distributed    |
+| GET    | `/api/users/[address]/bounties`                    | Get all bounties for a wallet                       |
+| GET    | `/api/users/[address]/notifications`               | Get notifications for a wallet                      |
+| POST   | `/api/users/[address]/notifications/read-all`      | Mark all notifications as read                      |
+| GET    | `/api/users/[address]/stats`                       | User stats — created, won, earned, referrals        |
+| POST   | `/api/referrals/track`                             | Record a new referral                               |
 
 ---
 
@@ -212,27 +259,29 @@ src/
     globals.css               Base styles (scrollbar-hide, press-scale, glass utilities)
     layout.tsx                Root layout with TonConnectUIProvider
     page.tsx                  Home — AppLayout + DiscoverScreen
-    api/                      All 11 Next.js Route Handlers
+    api/                      14 Next.js Route Handlers
+    ref/[code]/page.tsx       Referral landing — stores code in localStorage, redirects to /
   components/
     icons/index.tsx           All SVG icons (no icon library dependency)
     layout/
-      AppLayout.tsx           Root shell (Sidebar + content + BottomNav)
-      Sidebar.tsx             Desktop 240px dark nav sidebar
-      BottomNav.tsx           Mobile frosted-glass bottom nav
-    discover/                 DiscoverScreen, BountyCard, SearchBar, CategoryFilter
+      AppLayout.tsx           Root shell — NotificationProvider + Sidebar + BottomNav
+      Sidebar.tsx             Desktop 240px dark nav — notification badge
+      BottomNav.tsx           Mobile frosted-glass nav — notification dot
+    discover/                 DiscoverScreen (with PlatformStatsBar), BountyCard, SearchBar, CategoryFilter
     bounty/                   BountyDetailScreen, CreatorReviewScreen, ProofSubmitModal, SwapModal
-    bounties/                 MyBountiesScreen
+    bounties/                 MyBountiesScreen (with expired bounty refund flow)
     create/                   CreateBountyScreen (3-step wizard)
     notifications/            NotificationsScreen
-    profile/                  ProfileScreen
+    profile/                  ProfileScreen (real DB stats + referral card)
   hooks/
     useTonWallet.ts           TonConnect wallet state hook
     useOmniston.ts            Swap quote subscription + execution hook
   lib/
     types.ts                  All shared TypeScript types
     utils.ts                  Helpers: cn, formatCountdown, formatTON, toFriendlyAddress, tonToNanoton
-    api.ts                    Client-side API fetch wrappers
+    api.ts                    Client-side API fetch wrappers (14 endpoints)
     db-mappers.ts             DB row → TypeScript interface mappers
+    NotificationContext.tsx   React context — unread count with 30s polling
     omniston.ts               Omniston SDK wrapper + TonConnect adapter
     tokens.ts                 Supported swap tokens
     supabase.ts               Supabase server client
@@ -293,14 +342,22 @@ Text on dark: `text-ink-primary / secondary / muted`.
 - [x] 11 REST API endpoints (Next.js Route Handlers)
 - [x] Supabase integration with service role key
 
+- [x] Platform escrow transparency stats bar on homepage (live from DB)
+- [x] Referral system — `/ref/[code]` landing page, DB tracking, profile referral card
+- [x] Profile stats wired to real DB aggregates (created, won, earned, referrals)
+- [x] Real participant count on bounty detail (live from submissions table)
+- [x] Winner wallet addresses shown on closed bounty detail
+- [x] Expired bounty refund in My Bounties (creator claims back pool when deadline passes)
+- [x] Notification badge polling (30s) via React context — Sidebar + BottomNav
+- [x] API input validation and security hardening (address regex, length caps, type whitelists)
+
 ### Planned
 - [ ] Tact smart contracts (BountyFactory, EscrowContract) for on-chain fund custody
 - [ ] Telegram Mini App SDK (initData validation, native theme, viewport)
 - [ ] TON HTTP API v2 transaction confirmation after prize distribution
 - [ ] Draw-based automatic winner selection
 - [ ] Image proof upload to Supabase Storage
-- [ ] Profile stats wired to real DB aggregates
-- [ ] Vault distribution and referral system
+- [ ] Referral reward distribution on-chain
 - [ ] Smart contract security audit
 
 ---

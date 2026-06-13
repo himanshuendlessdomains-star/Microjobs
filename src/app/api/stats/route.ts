@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
 
+// Never prerender — always fetch live from DB
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const supabase = getSupabaseServer();

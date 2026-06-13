@@ -178,7 +178,7 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
 
   return (
     <div className="min-h-screen" style={{ background: "#F2F4FA" }}>
-      <div className="max-w-2xl mx-auto px-4 py-4 md:py-8 pb-32 md:pb-12">
+      <div className="max-w-2xl mx-auto px-4 py-4 md:py-8 pb-48 md:pb-12">
         {/* ── Header ── */}
         <header className="sticky top-0 bg-[#F2F4FA]/90 backdrop-blur-md z-10 py-3 flex items-center gap-3 -mx-4 px-4">
           <button
@@ -436,8 +436,8 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
           </div>
         )}
 
-        {/* ── CTA bar — fixed on mobile, in-flow on desktop ── */}
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-surface-border px-4 py-3 pb-[env(safe-area-inset-bottom,12px)] md:relative md:z-auto md:mt-6 md:bg-transparent md:backdrop-blur-none md:border-0 md:px-0 md:py-0 md:pb-0">
+        {/* ── CTA bar — fixed above BottomNav on mobile, in-flow on desktop ── */}
+        <div className="fixed bottom-[72px] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-surface-border px-4 py-3 md:relative md:bottom-auto md:z-auto md:mt-6 md:bg-transparent md:backdrop-blur-none md:border-0 md:px-0 md:py-0 md:pb-0">
           <div className="max-w-2xl mx-auto">
             {isCreator ? (
               bounty.status !== "active" ? (

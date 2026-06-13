@@ -3,6 +3,8 @@ import { getSupabaseServer } from "@/lib/supabase";
 import { mapBounty, type DbBounty } from "@/lib/db-mappers";
 import type { Bounty } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 const ICON_FOR_CATEGORY: Record<string, Bounty["icon"]> = {
   Creative: "star",
   Social: "x",

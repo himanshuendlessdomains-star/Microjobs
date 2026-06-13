@@ -13,6 +13,8 @@ import { formatTON } from "@/lib/utils";
 
 type Category = (typeof CATEGORIES)[number];
 
+const ESCROW_ADDRESS = process.env.NEXT_PUBLIC_ESCROW_ADDRESS ?? "";
+
 function PlatformStatsBar({ stats }: { stats: PlatformStats | null }) {
   function fmt(n: number) {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -21,10 +23,11 @@ function PlatformStatsBar({ stats }: { stats: PlatformStats | null }) {
   }
 
   const items = [
+    { label: "Open", value: stats ? String(stats.bountiesActive) : "—", desc: "Active bounties" },
     { label: "Escrow", value: stats ? `${fmt(stats.totalEscrow)} TON` : "—", desc: "Locked in active bounties" },
     { label: "Claimable", value: stats ? `${fmt(stats.totalClaimable)} TON` : "—", desc: "Refundable by creators" },
     { label: "Distributed", value: stats ? `${fmt(stats.totalDistributed)} TON` : "—", desc: "Paid to winners" },
-    { label: "Closed", value: stats ? String(stats.bountiesClosed) : "—", desc: "Bounties finalized" },
+    { label: "Closed", value: stats ? String(stats.bountiesClosed) : "—", desc: "Finalized" },
   ];
 
   return (
@@ -32,13 +35,26 @@ function PlatformStatsBar({ stats }: { stats: PlatformStats | null }) {
       className="mt-3 rounded-2xl border border-dark-border p-4"
       style={{ background: "#0D0E12" }}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-1.5 h-1.5 rounded-full bg-lime animate-pulse" />
-        <p className="text-xs font-semibold text-ink-muted tracking-wide uppercase">
-          Platform Escrow — Live & Transparent
-        </p>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-lime animate-pulse" />
+          <p className="text-xs font-semibold text-ink-muted tracking-wide uppercase">
+            Platform Escrow — Live
+          </p>
+        </div>
+        {ESCROW_ADDRESS && (
+          <a
+            href={`https://tonviewer.com/${ESCROW_ADDRESS}`}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="text-[10px] font-mono text-ink-faint hover:text-lime transition-colors"
+            title="View escrow wallet on TON explorer"
+          >
+            {ESCROW_ADDRESS.slice(0, 8)}…{ESCROW_ADDRESS.slice(-6)}
+          </a>
+        )}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
         {items.map(({ label, value, desc }) => (
           <div key={label} className="bg-dark-elevated rounded-xl p-3">
             <p className="text-[10px] text-ink-faint uppercase tracking-widest">{label}</p>
@@ -47,6 +63,24 @@ function PlatformStatsBar({ stats }: { stats: PlatformStats | null }) {
           </div>
         ))}
       </div>
+      {ESCROW_ADDRESS && (
+        <div className="mt-3 flex items-center gap-2 bg-dark-elevated rounded-xl px-3 py-2">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="flex-shrink-0">
+            <path d="M12 2L4 6V12C4 17 12 22 12 22C12 22 20 17 20 12V6L12 2Z" stroke="#B5F23A" strokeWidth="2" strokeLinejoin="round" />
+          </svg>
+          <p className="text-[10px] text-ink-muted flex-1">
+            All bounty funds are held in escrow at{" "}
+            <a
+              href={`https://tonviewer.com/${ESCROW_ADDRESS}`}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="text-lime font-mono hover:underline"
+            >
+              {ESCROW_ADDRESS}
+            </a>
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -60,9 +94,14 @@ export function DiscoverScreen() {
   const [error, setError] = useState("");
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
 
+  const loadStats = useCallback(() => {
+    getPlatformStats().then(setPlatformStats).catch(() => {});
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
+    loadStats();
     try {
       const data = await getBounties({ category, search });
       setBounties(data);
@@ -72,18 +111,12 @@ export function DiscoverScreen() {
     } finally {
       setLoading(false);
     }
-  }, [category, search]);
+  }, [category, search, loadStats]);
 
   useEffect(() => {
     const t = setTimeout(load, search ? 400 : 0);
     return () => clearTimeout(t);
   }, [load, search]);
-
-  useEffect(() => {
-    getPlatformStats()
-      .then(setPlatformStats)
-      .catch(() => {});
-  }, []);
 
   const hotBounties = bounties.filter((b) => b.isHot);
   const allBounties = bounties.filter((b) => !b.isHot);
@@ -168,7 +201,7 @@ export function DiscoverScreen() {
               <div className="flex items-center gap-2">
                 <span className="font-bold text-slate-900">All Bounties</span>
                 <span className="bg-surface-tint text-slate-500 text-xs px-2 py-0.5 rounded-full">
-                  {allBounties.length}
+                  {bounties.length}
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
