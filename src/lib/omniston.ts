@@ -27,8 +27,8 @@ function bocToBase64(s: string): string {
   // Looks like a valid hex BOC (even length, only hex chars)
   if (s.length % 2 === 0 && /^[0-9a-fA-F]+$/.test(s)) {
     const bytes = new Uint8Array(s.length / 2);
-    for (let i = 0; i < s.length; i += 2) {
-      bytes[i / 2] = parseInt(s.slice(i, i + 2), 16);
+    for (let i = 0, j = 0; i < s.length; i += 2, j++) {
+      bytes[j] = parseInt(s.slice(i, i + 2), 16);
     }
     let binary = "";
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);

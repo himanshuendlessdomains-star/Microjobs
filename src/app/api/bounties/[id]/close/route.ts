@@ -75,7 +75,7 @@ export async function POST(
               { status: 422 }
             );
           }
-          return NextResponse.json({ error: retryErr.message }, { status: 500 });
+          return NextResponse.json({ error: "Failed to close bounty" }, { status: 500 });
         }
       } else if (error.code === PG_CHECK_VIOLATION || error.message?.includes("bounties_status_check")) {
         return NextResponse.json(
@@ -90,7 +90,7 @@ export async function POST(
           { status: 422 }
         );
       } else {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Failed to close bounty" }, { status: 500 });
       }
     }
 
@@ -120,7 +120,7 @@ export async function POST(
     }
 
     return NextResponse.json({ ok: true });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }

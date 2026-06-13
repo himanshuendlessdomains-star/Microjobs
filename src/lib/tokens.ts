@@ -35,9 +35,12 @@ export const SWAP_TOKENS: SwapTokenInfo[] = [
 ];
 
 export function toNanoUnits(amount: string, decimals: number): string {
-  const parsed = parseFloat(amount);
-  if (isNaN(parsed) || parsed <= 0) return "0";
-  return Math.floor(parsed * 10 ** decimals).toString();
+  const clean = (amount ?? "").trim().replace(/,/g, "");
+  if (!clean || !/^\d+(\.\d+)?$/.test(clean)) return "0";
+  const [intPart = "0", fracPart = ""] = clean.split(".");
+  const frac = fracPart.slice(0, decimals).padEnd(decimals, "0");
+  const result = BigInt(intPart) * BigInt(10 ** decimals) + BigInt(frac);
+  return result <= 0n ? "0" : result.toString();
 }
 
 export function fromNanoUnits(units: string, decimals: number): string {

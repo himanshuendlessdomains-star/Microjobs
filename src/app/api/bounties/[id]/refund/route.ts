@@ -76,7 +76,7 @@ export async function POST(
           { status: 422 }
         );
       }
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Failed to process refund" }, { status: 500 });
     }
 
     // Notify the creator that the refund has been initiated (non-blocking)
@@ -90,7 +90,7 @@ export async function POST(
     });
 
     return NextResponse.json({ ok: true, poolAmount: b.pool_amount });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }

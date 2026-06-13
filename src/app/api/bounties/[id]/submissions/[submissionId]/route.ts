@@ -6,17 +6,23 @@ export async function PATCH(
   { params }: { params: { id: string; submissionId: string } }
 ) {
   try {
-    const body = (await request.json()) as { status: "approved" | "rejected" };
+    const body = (await request.json()) as {
+      status: "approved" | "rejected";
+      creatorAddress: string;
+    };
 
     if (!["approved", "rejected"].includes(body.status)) {
       return NextResponse.json({ error: "status must be approved or rejected" }, { status: 400 });
+    }
+    if (!body.creatorAddress) {
+      return NextResponse.json({ error: "creatorAddress is required" }, { status: 400 });
     }
 
     const supabase = getSupabaseServer();
 
     const { data: bounty } = await supabase
       .from("bounties")
-      .select("winner_count, title, per_winner_amount")
+      .select("creator_address, winner_count, title, per_winner_amount")
       .eq("id", params.id)
       .single();
 
@@ -24,7 +30,17 @@ export async function PATCH(
       return NextResponse.json({ error: "Bounty not found" }, { status: 404 });
     }
 
-    const b = bounty as { winner_count: number; title: string; per_winner_amount: number | null };
+    const b = bounty as {
+      creator_address: string;
+      winner_count: number;
+      title: string;
+      per_winner_amount: number | null;
+    };
+
+    // Verify the requester is the bounty creator
+    if (b.creator_address !== body.creatorAddress) {
+      return NextResponse.json({ error: "Only the bounty creator can review submissions" }, { status: 403 });
+    }
 
     if (body.status === "approved") {
       const { count } = await supabase
@@ -59,7 +75,7 @@ export async function PATCH(
       .eq("id", params.submissionId)
       .eq("bounty_id", params.id);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: "Failed to update submission" }, { status: 500 });
 
     // Fire winner-selected notification when approved (non-blocking — ignore failures)
     if (body.status === "approved" && sub.status !== "approved") {
@@ -81,7 +97,7 @@ export async function PATCH(
     }
 
     return NextResponse.json({ ok: true });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }

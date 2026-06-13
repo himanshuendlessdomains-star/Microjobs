@@ -14,6 +14,7 @@ export function formatCountdown(totalSeconds: number): string {
 
 export function formatTON(amount: string): string {
   const n = parseFloat(amount);
+  if (!Number.isFinite(n) || isNaN(n)) return "0";
   if (Number.isInteger(n)) return String(n);
   return n.toFixed(2).replace(/\.?0+$/, "");
 }
@@ -24,6 +25,7 @@ export function formatTON(amount: string): string {
  */
 export function tonToNanoton(ton: string): string {
   const clean = (ton ?? "0").trim().replace(/,/g, "");
+  if (!/^\d+(\.\d+)?$/.test(clean)) return "0";
   const [intStr, fracStr = ""] = clean.split(".");
   const frac9 = fracStr.slice(0, 9).padEnd(9, "0");
   return (BigInt(intStr || "0") * 1_000_000_000n + BigInt(frac9)).toString();
@@ -45,6 +47,7 @@ export function toFriendlyAddress(addr: string, bounceable = true): string {
   if (!m) return addr;
 
   const workchain = parseInt(m[1], 10);
+  if (!Number.isInteger(workchain) || workchain < -128 || workchain > 127) return addr;
   const hexAddr = m[2];
   const buf = new Uint8Array(36);
 

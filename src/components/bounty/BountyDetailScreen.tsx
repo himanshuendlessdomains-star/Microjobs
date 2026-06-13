@@ -21,7 +21,7 @@ import { ProofSubmitModal } from "./ProofSubmitModal";
 import { SwapModal } from "./SwapModal";
 import { useTonConnectUI } from "@tonconnect/ui-react";
 import { getBounty, submitProof, closeBounty } from "@/lib/api";
-import { cn, formatCountdown, formatTON } from "@/lib/utils";
+import { cn, formatCountdown, formatTON, tonToNanoton } from "@/lib/utils";
 import { useWallet } from "@/hooks/useTonWallet";
 import type { Bounty, ProofSubmission } from "@/lib/types";
 
@@ -85,7 +85,7 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
     const escrowAddress = process.env.NEXT_PUBLIC_ESCROW_ADDRESS;
     if (!escrowAddress) return false;
     try {
-      const nanotons = Math.floor(parseFloat(bounty.entryFee) * 1e9).toString();
+      const nanotons = tonToNanoton(bounty.entryFee);
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
         messages: [{ address: escrowAddress, amount: nanotons }],
@@ -154,9 +154,7 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
     if (ok) setParticipateState({ status: "proof" });
   }
 
-  async function handleSwapSuccess(receivedTon: string) {
-    // User has swapped to TON; now pay the entry fee with it.
-    console.log("Swap succeeded, received", receivedTon, "TON — paying entry fee");
+  async function handleSwapSuccess() {
     setPayingFee(true);
     const ok = await sendEntryFee();
     setPayingFee(false);
@@ -165,10 +163,14 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
   }
 
   async function handleProofSubmit(sub: ProofSubmission) {
-    setSubmission(sub);
-    setParticipateState({ status: "done" });
-    if (rawAddress) {
-      submitProof(bountyId, { ...sub, walletAddress: rawAddress }).catch(() => {});
+    if (!rawAddress) return;
+    try {
+      await submitProof(bountyId, { ...sub, walletAddress: rawAddress });
+      setSubmission(sub);
+      setParticipateState({ status: "done" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Submission failed. Please try again.";
+      setFetchError(msg);
     }
   }
 
@@ -513,7 +515,7 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
           targetTon={bounty.entryFee ?? "0"}
           walletAddress={rawAddress}
           onClose={() => setParticipateState({ status: "idle" })}
-          onSuccess={handleSwapSuccess}
+          onSuccess={() => { void handleSwapSuccess(); }}
         />
       )}
 

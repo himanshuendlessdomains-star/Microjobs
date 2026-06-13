@@ -72,12 +72,13 @@ export async function getSubmissions(
 export async function updateSubmission(
   bountyId: string,
   submissionId: string,
-  status: SubmissionStatus
+  status: SubmissionStatus,
+  creatorAddress: string
 ): Promise<void> {
   const res = await fetch(`${BASE}/api/bounties/${bountyId}/submissions/${submissionId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, creatorAddress }),
   });
   if (!res.ok) {
     const json = (await res.json().catch(() => ({}))) as { error?: string };

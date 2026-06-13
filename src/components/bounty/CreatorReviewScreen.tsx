@@ -92,14 +92,18 @@ function SubmissionCard({
 
       <div className="bg-surface-tint rounded-xl p-3 mt-3 mb-3">
         {sub.proofType === "link" ? (
-          <a
-            href={sub.content}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-lime-dim underline break-all"
-          >
-            {sub.content}
-          </a>
+          /^https?:\/\//i.test(sub.content) ? (
+            <a
+              href={sub.content}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="text-sm text-lime-dim underline break-all"
+            >
+              {sub.content}
+            </a>
+          ) : (
+            <p className="text-sm text-slate-700 leading-relaxed break-all">{sub.content}</p>
+          )
         ) : (
           <p className="text-sm text-slate-700 leading-relaxed">{sub.content}</p>
         )}
@@ -176,9 +180,10 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
 
   const handleStatusChange = useCallback(
     async (submissionId: string, status: SubmissionStatus) => {
+      if (!rawAddress) return;
       setActionError("");
       try {
-        await updateSubmission(bountyId, submissionId, status);
+        await updateSubmission(bountyId, submissionId, status, rawAddress);
         setSubmissions((list) => {
           const updated = list.map((s) => (s.id === submissionId ? { ...s, status } : s));
           const newApproved = updated.filter((s) => s.status === "approved").length;
@@ -193,7 +198,7 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
         setActionError(err instanceof Error ? err.message : "Action failed.");
       }
     },
-    [bounty, bountyId]
+    [bounty, bountyId, rawAddress]
   );
 
   const handleFinalize = useCallback(async () => {
