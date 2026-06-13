@@ -18,7 +18,7 @@ BountyHive is a full-stack web app (and future Telegram Mini App) for creating a
 | Frontend        | Next.js 14 (App Router), TypeScript, Tailwind CSS        |
 | Backend API     | Next.js Route Handlers (src/app/api/**)                  |
 | Database        | Supabase (PostgreSQL, service role key, RLS bypassed)    |
-| Smart Contracts | Tact (compiled to FunC for TON VM) — not yet in repo     |
+| Smart Contracts | Tact 1.6 — `contracts/BountyEscrow.tact` (compile with blueprint) |
 | Token Swapping  | Omniston SDK v0.8.3 → StonFi aggregator (WebSocket RPC)  |
 | Wallet          | TonConnect v2 (`@tonconnect/ui-react` v2.4.4)            |
 | Hosting         | Vercel (frontend)                                        |
@@ -42,6 +42,7 @@ src/
         [id]/participate/route.ts   POST — submit proof (creator-guard, duplicate-guard)
         [id]/close/route.ts         POST — close bounty, fire prize notifications
         [id]/refund/route.ts        POST — refund pool (works for both zero-participant AND expired bounties)
+        [id]/escrow/route.ts        POST — return SetWinners or Cancel BOC for on-chain escrow contract
         [id]/submissions/
           route.ts                  GET — review data (bounty + submissions + approvedCount)
           [submissionId]/route.ts   PATCH — approve/reject with creatorAddress auth
@@ -391,11 +392,89 @@ npm run start    # Start production server after build
 
 ---
 
+## On-Chain Escrow System
+
+### Contract: `contracts/BountyEscrow.tact`
+
+One contract per bounty. The creator deploys and funds it in a single TonConnect transaction. Security invariants enforced on-chain:
+
+- Only the `creator` address may call Fund / SetWinners / Cancel.
+- `Cancel` (refund) is blocked until `now() >= deadline` — funds are locked while the bounty is active. Neither the creator nor the platform can withdraw during this window.
+- `SetWinners` allows partial finalization: `msg.count` may be 1 to `winnerCount`.
+- A `nonce: Int as uint64` field (set to `Date.now()` at creation) makes every contract address unique even when params match.
+- Max winners: 100.
+
+### Contract state layout (must match `src/lib/escrow-builder.ts`)
+
+```
+creator:     Address   → storeAddress(Address.parse(creatorRaw))
+winnerCount: uint8     → storeUint(winnerCount, 8)
+deadline:    uint48    → storeUint(deadlineUnixSecs, 48)
+poolAmount:  coins     → storeCoins(0n)            ← always 0 at init
+settled:     Bool      → storeBit(false)            ← always false at init
+nonce:       uint64    → storeUint(BigInt(nonce), 64)
+```
+
+### Message opcodes
+
+| Message    | Opcode     | Body                                                        |
+| ---------- | ---------- | ----------------------------------------------------------- |
+| Fund       | 0x7b7f2a2f | `storeUint(op, 32) + storeCoins(poolNanotons)`              |
+| SetWinners | 0x3e4a9d8c | `storeUint(op, 32) + storeDict(winners) + storeUint(n, 8)` |
+| Cancel     | 0xf1c3a5b7 | `storeUint(op, 32)` only                                    |
+
+### Compile and activate
+
+```bash
+npx blueprint build BountyEscrow
+# Copy hex from build/BountyEscrow.compiled.json → "hex" field
+# Paste into src/lib/escrow-code.ts → BOUNTY_ESCROW_CODE_HEX
+```
+
+Until `BOUNTY_ESCROW_CODE_HEX` is non-empty, the system falls back to direct transfer to `NEXT_PUBLIC_ESCROW_ADDRESS` (hot-wallet mode). No code changes needed to switch modes.
+
+### DB migration (run once)
+
+```sql
+ALTER TABLE bounties ADD COLUMN IF NOT EXISTS escrow_address TEXT;
+ALTER TABLE bounties ADD COLUMN IF NOT EXISTS escrow_nonce BIGINT;
+```
+
+### Server-side escrow files (never import from client components)
+
+- `src/lib/escrow-code.ts` — compiled hex constant
+- `src/lib/escrow-builder.ts` — all @ton/core cell construction (`buildEscrowDeployTx`, `buildSetWinnersTx`, `buildCancelTx`)
+- `src/app/api/bounties/[id]/escrow/route.ts` — POST endpoint; returns settle or cancel BOC for frontend to pass to TonConnect
+
+### Deploy flow (contract mode)
+
+1. `POST /api/bounties` — API generates `nonce = Date.now()`, computes escrow address + StateInit BOC + Fund payload BOC, stores both in DB.
+2. Response includes `escrowDeployTx: { stateInitBoc, fundPayloadBoc, totalNanotons }`.
+3. Frontend sends one TonConnect message: `{ address: escrowAddress, amount: totalNanotons, stateInit: stateInitBoc, payload: fundPayloadBoc }`.
+4. Total nanotons = poolNanotons + 200_000_000 (0.2 TON gas buffer). The Fund message body carries the explicit `poolAmount` so the contract records it exactly.
+
+### Distribute prizes flow (contract mode)
+
+1. `POST /api/bounties/[id]/escrow` with `{ operation: "settle", creatorAddress, winners: [...rawAddrs] }`.
+2. API builds SetWinners BOC, returns `{ escrowAddress, payloadBoc, gasNanotons: "500000000" }`.
+3. Frontend sends TonConnect message to `escrowAddress` with that payload and 0.5 TON gas.
+4. Contract distributes `poolAmount / winnerCount` to each winner; remainder returned to creator.
+5. Frontend then calls `POST /api/bounties/[id]/close` to update DB status.
+
+### Refund flow (contract mode)
+
+1. `POST /api/bounties/[id]/escrow` with `{ operation: "cancel", creatorAddress }`.
+2. API builds Cancel BOC, returns `{ escrowAddress, payloadBoc, gasNanotons: "50000000" }`.
+3. Frontend sends TonConnect message to `escrowAddress`. Contract enforces `now() >= deadline`.
+4. Frontend then calls `POST /api/bounties/[id]/refund` to update DB status.
+
+---
+
 ## What Is NOT Yet Built
 
 Do not stub or mock these — wait until the real implementation is ready:
 
-- Tact smart contracts (BountyFactory, EscrowContract) — on-chain fund custody
+- BountyEscrow compiled hex — run `npx blueprint build BountyEscrow` and paste into `src/lib/escrow-code.ts`
 - Telegram Mini App SDK integration (initData validation, theme params, viewport API)
 - TON HTTP API v2 transaction confirmation (verify prizes landed on-chain)
 - Draw-based winner selection (currently only manual selection is implemented)
@@ -406,6 +485,9 @@ Do not stub or mock these — wait until the real implementation is ready:
 
 ## What WAS Recently Built (no longer stubs)
 
+- **On-chain escrow contract**: `contracts/BountyEscrow.tact` — per-bounty contract with locked funds, deadline-guarded cancel, partial winner support, and nonce for unique addresses. Full server-side builder in `src/lib/escrow-builder.ts`. Progressive deploy flow falls back to hot wallet when hex is empty.
+- **Creator-only guards**: CreatorReviewScreen renders access-denied states for non-owners. All action callbacks guard before mutating state. Address comparison always uses `.toLowerCase()` on both sides.
+- **Connect Wallet CTA**: BountyDetailScreen shows an actionable "Connect Wallet to Participate" button when wallet not connected (was passive text).
 - **Security hardening**: All API routes validate input types, lengths, and formats. Submission PATCH requires `creatorAddress` auth. No raw errors exposed.
 - **NotificationContext**: 30s polling for unread count, shared across Sidebar and BottomNav badges.
 - **Real DB stats**: `GET /api/users/[addr]/stats` aggregates created, won, earned, referrals from DB.

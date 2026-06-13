@@ -34,6 +34,8 @@ export type DbBounty = {
   entry_fee: number | null;
   status: string;
   created_at: string;
+  escrow_address?: string | null;
+  escrow_nonce?: number | null;
 };
 
 export type DbSubmission = {
@@ -82,6 +84,7 @@ export function mapBounty(row: DbBounty): Bounty {
     creatorAvatar: row.creator_avatar ?? undefined,
     entryFee: row.entry_fee != null ? String(row.entry_fee) : undefined,
     status: row.status === "active" ? "active" : "closed",
+    escrowAddress: row.escrow_address ?? undefined,
   };
 }
 

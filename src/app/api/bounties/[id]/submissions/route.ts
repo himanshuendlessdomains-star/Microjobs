@@ -12,7 +12,7 @@ export async function GET(
 
     const { data: bounty, error: bountyErr } = await supabase
       .from("bounties")
-      .select("id, title, winner_count, winner_selection, pool_amount, per_winner_amount, icon, category, creator_address, status")
+      .select("id, title, winner_count, winner_selection, pool_amount, per_winner_amount, icon, category, creator_address, status, escrow_address")
       .eq("id", params.id)
       .single();
 
@@ -44,6 +44,7 @@ export async function GET(
       category: bounty.category,
       creatorAddress: bounty.creator_address,
       status: bounty.status as ReviewBounty["status"],
+      escrowAddress: bounty.escrow_address ?? undefined,
     };
 
     return NextResponse.json({ bounty: reviewBounty, submissions, approvedCount });

@@ -59,10 +59,34 @@ export async function markAllRead(walletAddress: string): Promise<void> {
   await post(`/api/users/${encodeURIComponent(walletAddress)}/notifications/read-all`);
 }
 
+export interface EscrowDeployTx {
+  stateInitBoc: string;
+  fundPayloadBoc: string;
+  totalNanotons: string;
+}
+
 export async function createBounty(
   data: CreateBountyFormData & { creatorAddress: string; creatorName?: string }
-): Promise<Bounty> {
-  return post<Bounty>("/api/bounties", data);
+): Promise<Bounty & { escrowDeployTx: EscrowDeployTx | null }> {
+  return post<Bounty & { escrowDeployTx: EscrowDeployTx | null }>("/api/bounties", data);
+}
+
+export async function getEscrowTx(
+  bountyId: string,
+  creatorAddress: string,
+  operation: "settle" | "cancel",
+  winners?: string[]
+): Promise<{ escrowAddress: string; payloadBoc: string; gasNanotons: string }> {
+  const res = await fetch(`${BASE}/api/bounties/${bountyId}/escrow`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ operation, creatorAddress, winners }),
+  });
+  if (!res.ok) {
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(json.error ?? `API ${res.status}`);
+  }
+  return res.json() as Promise<{ escrowAddress: string; payloadBoc: string; gasNanotons: string }>;
 }
 
 export async function getSubmissions(

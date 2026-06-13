@@ -14,6 +14,7 @@ import { SwapModal } from "@/components/bounty/SwapModal";
 import { useWallet } from "@/hooks/useTonWallet";
 import { cn } from "@/lib/utils";
 import { createBounty } from "@/lib/api";
+import { tonToNanoton } from "@/lib/utils";
 import type { CreateBountyFormData, BountyType, WinnerSelection } from "@/lib/types";
 
 type Step = 1 | 2 | 3 | 4;
@@ -32,8 +33,7 @@ const BOUNTY_TYPES: { type: BountyType; label: string; desc: string }[] = [
   { type: "quiz", label: "Quiz", desc: "Answer questions correctly" },
 ];
 
-// Reads at call time so a dev-server restart isn't needed when .env.local changes.
-function getEscrowAddress() {
+function getHotWalletAddress() {
   return process.env.NEXT_PUBLIC_ESCROW_ADDRESS ?? "";
 }
 
@@ -137,38 +137,63 @@ export function CreateBountyScreen() {
 
   async function handleLaunch() {
     if (!isConnected || !rawAddress) return;
-    const escrowAddress = getEscrowAddress();
-    if (!escrowAddress) {
-      setLaunchError("Escrow address not configured. Set NEXT_PUBLIC_ESCROW_ADDRESS in .env.local.");
-      return;
-    }
-    if (!isMainnet) {
-      setLaunchError("Your wallet is on testnet. Switch to TON Mainnet to fund a bounty.");
-      return;
-    }
     setLaunching(true);
     setLaunchError("");
 
-    const nanotons = Math.floor(parseFloat(form.poolAmount) * 1e9).toString();
-
     try {
-      await tonConnectUI.sendTransaction({
-        validUntil: Math.floor(Date.now() / 1000) + 600,
-        messages: [{ address: escrowAddress, amount: nanotons }],
-      });
-    } catch (txErr) {
-      setLaunchError(txErr instanceof Error ? txErr.message : "Wallet rejected the transaction.");
-      setLaunching(false);
-      return;
-    }
+      // Create bounty in DB first — API generates nonce + escrow address + deploy BOC.
+      const result = await createBounty({ ...form, creatorAddress: rawAddress });
 
-    try {
-      const bounty = await createBounty({ ...form, creatorAddress: rawAddress });
-      setCreatedBountyId(bounty?.id ?? null);
+      if (result.escrowDeployTx) {
+        // Contract deployment path: deploy + fund the per-bounty escrow contract.
+        const { escrowDeployTx } = result;
+        try {
+          await tonConnectUI.sendTransaction({
+            validUntil: Math.floor(Date.now() / 1000) + 600,
+            messages: [
+              {
+                address: result.escrowAddress!,
+                amount: escrowDeployTx.totalNanotons,
+                stateInit: escrowDeployTx.stateInitBoc,
+                payload: escrowDeployTx.fundPayloadBoc,
+              },
+            ],
+          });
+        } catch (txErr) {
+          setLaunchError(
+            txErr instanceof Error ? txErr.message : "Wallet rejected the transaction."
+          );
+          setLaunching(false);
+          return;
+        }
+      } else {
+        // Fallback: direct transfer to hot-wallet escrow (no compiled contract yet).
+        const hotWallet = getHotWalletAddress();
+        if (!hotWallet) {
+          setLaunchError("Escrow address not configured. Set NEXT_PUBLIC_ESCROW_ADDRESS in .env.local.");
+          setLaunching(false);
+          return;
+        }
+        const nanotons = tonToNanoton(form.poolAmount);
+        try {
+          await tonConnectUI.sendTransaction({
+            validUntil: Math.floor(Date.now() / 1000) + 600,
+            messages: [{ address: hotWallet, amount: nanotons }],
+          });
+        } catch (txErr) {
+          setLaunchError(
+            txErr instanceof Error ? txErr.message : "Wallet rejected the transaction."
+          );
+          setLaunching(false);
+          return;
+        }
+      }
+
+      setCreatedBountyId(result.id ?? null);
       setLaunched(true);
-    } catch (dbErr) {
+    } catch (err) {
       setLaunchError(
-        `Funds sent! But the bounty could not be saved: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}. Check your Supabase setup and try again.`
+        err instanceof Error ? err.message : "Failed to launch bounty. Check your connection and try again."
       );
     } finally {
       setLaunching(false);
@@ -587,7 +612,7 @@ export function CreateBountyScreen() {
                 <div className="rounded-xl p-4 flex items-center gap-3 border" style={{ background: "#FFFBEB", borderColor: "#FDE68A" }}>
                   <span className="text-lg">🔁</span>
                   <p className="text-xs font-medium" style={{ color: "#B45309" }}>
-                    Your wallet is on testnet. Switch to TON Mainnet to fund this bounty.
+                    Your wallet is on testnet. Funds will go to the testnet contract.
                   </p>
                 </div>
               )}

@@ -15,7 +15,7 @@ import {
   TrophyBountyIcon,
 } from "@/components/icons";
 import { formatTON, toFriendlyAddress, tonToNanoton } from "@/lib/utils";
-import { getSubmissions, updateSubmission, closeBounty, requestRefund } from "@/lib/api";
+import { getSubmissions, updateSubmission, closeBounty, requestRefund, getEscrowTx } from "@/lib/api";
 import { useWallet } from "@/hooks/useTonWallet";
 import type { Submission, ReviewBounty, SubmissionStatus } from "@/lib/types";
 
@@ -209,25 +209,39 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
     setFinalizing(true);
     setFinalizeError("");
 
-    // Convert TON amount to nanotons using integer math (avoids float precision errors)
-    const nanotons = tonToNanoton(bounty.perWinnerAmount);
-
-    // Build messages: winner wallets are non-bounceable (UQ...) — raw 0:hex addresses
-    // stored in DB must be converted to user-friendly format that TonConnect accepts.
-    const messages = winners.map((w) => ({
-      address: toFriendlyAddress(w.walletAddress, false),
-      amount: nanotons,
-    }));
-
     let txBoc: string | undefined;
-
     setDistributeStep("signing");
+
     try {
-      const result = await tonConnectUI.sendTransaction({
-        validUntil: Math.floor(Date.now() / 1000) + 600,
-        messages,
-      });
-      txBoc = result?.boc;
+      if (bounty.escrowAddress) {
+        // On-chain escrow path: send SetWinners message to the contract.
+        // The contract distributes prizes automatically from the locked pool.
+        const winnerAddrs = winners.map((w) => w.walletAddress);
+        const tx = await getEscrowTx(bountyId, rawAddress, "settle", winnerAddrs);
+        const result = await tonConnectUI.sendTransaction({
+          validUntil: Math.floor(Date.now() / 1000) + 600,
+          messages: [
+            {
+              address: tx.escrowAddress,
+              amount: tx.gasNanotons,
+              payload: tx.payloadBoc,
+            },
+          ],
+        });
+        txBoc = result?.boc;
+      } else {
+        // Hot-wallet fallback: multi-message direct transfer to each winner.
+        const nanotons = tonToNanoton(bounty.perWinnerAmount);
+        const messages = winners.map((w) => ({
+          address: toFriendlyAddress(w.walletAddress, false),
+          amount: nanotons,
+        }));
+        const result = await tonConnectUI.sendTransaction({
+          validUntil: Math.floor(Date.now() / 1000) + 600,
+          messages,
+        });
+        txBoc = result?.boc;
+      }
     } catch (txErr) {
       const msg = txErr instanceof Error ? txErr.message : String(txErr);
       const isRejected = msg.toLowerCase().includes("reject") || msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("declined");
@@ -243,7 +257,6 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
       setBounty((b) => (b ? { ...b, status: "closed" } : b));
       setDistributeStep("done");
     } catch {
-      // Prizes were sent — only the DB update failed. Show a softer warning.
       setFinalizeError(
         `Prizes sent to ${winners.length} winner${winners.length > 1 ? "s" : ""}! Note: bounty status update failed — please contact support with tx reference.`
       );
@@ -259,6 +272,22 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
     setRefundError("");
     setRefundNeedsMigration(false);
     try {
+      if (bounty.escrowAddress) {
+        // On-chain escrow path: send Cancel message. Contract enforces deadline check
+        // and refunds the pool back to the creator's wallet automatically.
+        const tx = await getEscrowTx(bountyId, rawAddress, "cancel");
+        await tonConnectUI.sendTransaction({
+          validUntil: Math.floor(Date.now() / 1000) + 600,
+          messages: [
+            {
+              address: tx.escrowAddress,
+              amount: tx.gasNanotons,
+              payload: tx.payloadBoc,
+            },
+          ],
+        });
+      }
+      // Always update DB status regardless of whether contract path ran.
       await requestRefund(bountyId, rawAddress);
       setRefundDone(true);
     } catch (err) {
@@ -270,7 +299,7 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
     } finally {
       setRefunding(false);
     }
-  }, [bounty, bountyId, rawAddress]);
+  }, [bounty, bountyId, rawAddress, tonConnectUI]);
 
   const isOwner =
     !!rawAddress &&

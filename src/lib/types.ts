@@ -27,6 +27,7 @@ export interface Bounty {
   entryFee?: string;
   status: "active" | "closed";
   winners?: string[];
+  escrowAddress?: string;
 }
 
 export interface UserBounty {
@@ -95,6 +96,7 @@ export interface ReviewBounty {
   category: Category;
   creatorAddress: string;
   status: BountyStatus;
+  escrowAddress?: string;
 }
 
 export interface SwapTokenInfo {
