@@ -111,8 +111,13 @@ export async function requestRefund(
     body: JSON.stringify({ creatorAddress }),
   });
   if (!res.ok) {
-    const json = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(json.error ?? `API ${res.status}`);
+    const json = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      needsMigration?: boolean;
+    };
+    const err = new Error(json.error ?? `API ${res.status}`);
+    if (json.needsMigration) Object.assign(err, { needsMigration: true });
+    throw err;
   }
   return res.json() as Promise<{ poolAmount: number }>;
 }

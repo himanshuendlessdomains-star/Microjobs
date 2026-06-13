@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
 
+const PG_CHECK_VIOLATION = "23514";
+
 export async function POST(
   request: Request,
   { params }: { params: { id: string } }
@@ -53,13 +55,40 @@ export async function POST(
       .eq("id", params.id);
 
     if (error) {
-      // Retry without optional column if it doesn't exist in schema yet
+      // prize_tx_boc column doesn't exist yet — retry without it
       if (error.code === "42703" || error.message?.includes("prize_tx_boc")) {
         const { error: retryErr } = await supabase
           .from("bounties")
           .update({ status: "closed" })
           .eq("id", params.id);
-        if (retryErr) return NextResponse.json({ error: retryErr.message }, { status: 500 });
+        if (retryErr) {
+          if (retryErr.code === PG_CHECK_VIOLATION || retryErr.message?.includes("bounties_status_check")) {
+            return NextResponse.json(
+              {
+                error:
+                  "Database schema needs updating. Run this SQL once in your Supabase SQL Editor:\n\n" +
+                  "ALTER TABLE bounties DROP CONSTRAINT bounties_status_check;\n" +
+                  "ALTER TABLE bounties ADD CONSTRAINT bounties_status_check\n" +
+                  "  CHECK (status IN ('active', 'closed'));",
+                needsMigration: true,
+              },
+              { status: 422 }
+            );
+          }
+          return NextResponse.json({ error: retryErr.message }, { status: 500 });
+        }
+      } else if (error.code === PG_CHECK_VIOLATION || error.message?.includes("bounties_status_check")) {
+        return NextResponse.json(
+          {
+            error:
+              "Database schema needs updating. Run this SQL once in your Supabase SQL Editor:\n\n" +
+              "ALTER TABLE bounties DROP CONSTRAINT bounties_status_check;\n" +
+              "ALTER TABLE bounties ADD CONSTRAINT bounties_status_check\n" +
+              "  CHECK (status IN ('active', 'closed'));",
+            needsMigration: true,
+          },
+          { status: 422 }
+        );
       } else {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }

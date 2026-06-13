@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabase";
 
+// PostgreSQL error code for check-constraint violation
+const PG_CHECK_VIOLATION = "23514";
+
 export async function POST(
   request: Request,
   { params }: { params: { id: string } }
@@ -36,7 +39,6 @@ export async function POST(
     }
 
     if (b.status === "closed") {
-      // Already closed — could be a duplicate refund request, treat as idempotent
       return NextResponse.json({ ok: true, alreadyRefunded: true });
     }
 
@@ -54,13 +56,28 @@ export async function POST(
       );
     }
 
-    // Close the bounty (same status as prize distribution — DB only allows 'active' | 'closed')
     const { error } = await supabase
       .from("bounties")
       .update({ status: "closed" })
       .eq("id", params.id);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      // Check-constraint violation: the DB schema needs a one-time migration.
+      if (error.code === PG_CHECK_VIOLATION || error.message?.includes("bounties_status_check")) {
+        return NextResponse.json(
+          {
+            error:
+              "Database schema needs updating. Run this SQL once in your Supabase SQL Editor:\n\n" +
+              "ALTER TABLE bounties DROP CONSTRAINT bounties_status_check;\n" +
+              "ALTER TABLE bounties ADD CONSTRAINT bounties_status_check\n" +
+              "  CHECK (status IN ('active', 'closed'));",
+            needsMigration: true,
+          },
+          { status: 422 }
+        );
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     // Notify the creator that the refund has been initiated (non-blocking)
     const poolTon = Number(b.pool_amount).toFixed(2);

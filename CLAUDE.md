@@ -7,24 +7,21 @@ Read it before making any changes.
 
 ## What This Project Is
 
-BountyHive is a Telegram Mini App for creating and participating in on-chain bounties on the TON blockchain.
-Creators fund bounties in TON, participants submit proof, and winners get paid automatically via smart contracts.
-The frontend is a Next.js 14 App Router application styled with Tailwind CSS, designed to render inside a
-Telegram WebView at 390x844px (iPhone 14 viewport).
+BountyHive is a full-stack web app (and future Telegram Mini App) for creating and participating in on-chain bounties on the TON blockchain. Creators fund bounties in TON, participants submit proof, and winners receive prizes automatically via TonConnect multi-message transactions. The UI works as both a responsive desktop web app and a mobile-first experience.
 
 ---
 
 ## Tech Stack
 
-| Layer          | Technology                                      |
-| -------------- | ----------------------------------------------- |
-| Frontend       | Next.js 14 (App Router), TypeScript, Tailwind   |
-| Backend        | Node.js + Express (TypeScript) — not yet in repo |
-| Database       | Supabase (PostgreSQL + Realtime) — not yet wired |
-| Smart Contracts | Tact (compiled to FunC for TON VM) — not yet in repo |
-| Token Swapping | Omniston → StonFi aggregator                   |
-| Wallet         | TonConnect v2 (UI React SDK)                    |
-| Hosting        | Vercel (frontend) + Render (backend)            |
+| Layer           | Technology                                               |
+| --------------- | -------------------------------------------------------- |
+| Frontend        | Next.js 14 (App Router), TypeScript, Tailwind CSS        |
+| Backend API     | Next.js Route Handlers (src/app/api/**)                  |
+| Database        | Supabase (PostgreSQL, service role key, RLS bypassed)    |
+| Smart Contracts | Tact (compiled to FunC for TON VM) — not yet in repo     |
+| Token Swapping  | Omniston SDK v0.8.3 → StonFi aggregator (WebSocket RPC)  |
+| Wallet          | TonConnect v2 (`@tonconnect/ui-react` v2.4.4)            |
+| Hosting         | Vercel (frontend)                                        |
 
 ---
 
@@ -33,83 +30,235 @@ Telegram WebView at 390x844px (iPhone 14 viewport).
 ```
 src/
   app/
-    globals.css          Base styles, scrollbar-hide, press-scale utility
-    layout.tsx           Root layout — Geist font, metadata
-    page.tsx             Entry point — renders PhoneFrame + DiscoverScreen
+    globals.css                     Base styles, scrollbar-hide, press-scale, glass utilities
+    layout.tsx                      Root layout — Geist font, TonConnectUIProvider wrapper
+    page.tsx                        Entry → AppLayout + DiscoverScreen
+    api/
+      bounties/
+        route.ts                    GET (list active) + POST (create)
+        [id]/route.ts               GET single bounty
+        [id]/participate/route.ts   POST — submit proof (creator-guard, duplicate-guard)
+        [id]/close/route.ts         POST — close bounty, fire prize notifications
+        [id]/refund/route.ts        POST — refund pool when no participants
+        [id]/submissions/
+          route.ts                  GET — review data (bounty + submissions + approvedCount)
+          [submissionId]/route.ts   PATCH — approve/reject, fires winner-selected notification
+      users/[address]/
+        bounties/route.ts           GET — creator + joined bounties for wallet
+        notifications/route.ts      GET — notifications for wallet
+        notifications/read-all/     POST — mark all read
+
   components/
-    icons/
-      index.tsx          All SVG icons: TonDiamond, ClockIcon, PeopleIcon,
-                         bounty set (rocket/x/chart/code/star/trophy),
-                         nav icons, HexLogo, badge icons
+    icons/index.tsx                 All SVG icons (no external icon library)
     layout/
-      PhoneFrame.tsx     390x844 phone shell wrapper with drop shadow
-      BottomNav.tsx      4-tab bottom navigation with active state
+      AppLayout.tsx                 Root shell — Sidebar + main + BottomNav
+      Sidebar.tsx                   Desktop 240px dark sidebar with nav + Create FAB
+      BottomNav.tsx                 Mobile frosted-glass bottom nav (md:hidden)
     discover/
-      BountyCard.tsx     Individual bounty card — live countdown timer,
-                         hot glow animation, draw/manual winner badge
-      CategoryFilter.tsx Horizontal pill tabs for category filtering
-      DiscoverScreen.tsx Full Discover screen — composes all sub-components
-      SearchBar.tsx      Search input with live filter + clear button
+      DiscoverScreen.tsx            Hero dark card, hot scroll, responsive bounty grid, FAB
+      BountyCard.tsx                Light card (normal) + dark glow card (hot variant)
+      CategoryFilter.tsx            Horizontal pill filter tabs
+      SearchBar.tsx                 Search input, dark/light prop
+    bounty/
+      BountyDetailScreen.tsx        Full bounty detail, creator vs participant CTA, closed guard
+      CreatorReviewScreen.tsx       Submissions list, approve/reject, distribute prizes, refund
+      ProofSubmitModal.tsx          Text / link / image proof submission
+      SwapModal.tsx                 Omniston real-time quote + swap
+    bounties/
+      MyBountiesScreen.tsx          Participating / Created / Closed tabs
+    create/
+      CreateBountyScreen.tsx        3-step wizard: details → rewards → review → launch
+    notifications/
+      NotificationsScreen.tsx       Today/earlier groups, per-type icons, mark-all-read
+    profile/
+      ProfileScreen.tsx             Wallet connect/disconnect, stats grid, settings
+
+  hooks/
+    useTonWallet.ts                 friendlyAddress, rawAddress, isConnected, isMainnet
+    useOmniston.ts                  Quote subscription, executeSwap, status machine
+
   lib/
-    data.ts              Seeded mock bounty data (6 bounties, all categories)
-    types.ts             TypeScript types: Bounty, Category, WinnerSelection
-    utils.ts             cn(), formatCountdown(), formatTON()
+    types.ts                        All shared TypeScript types (see Types section)
+    utils.ts                        cn(), formatCountdown(), formatTON(), toFriendlyAddress(), tonToNanoton()
+    api.ts                          Client-side fetch wrappers for all API routes
+    db-mappers.ts                   DbBounty/DbSubmission/DbNotification → typed interfaces
+    omniston.ts                     Omniston SDK wrapper, BOC conversion, TonConnect adapter
+    tokens.ts                       SWAP_TOKENS array, toNanoUnits, fromNanoUnits
+    supabase.ts                     getSupabaseServer() with service role key
 ```
 
 ---
 
-## Color Palette (never deviate without discussion)
+## Layout System
 
-| Token         | Hex       | Usage                                  |
-| ------------- | --------- | -------------------------------------- |
-| `#B5F23A`     | Lime      | Primary accent — CTAs, active states, TON amounts, glow |
-| `#0D0E10`     | Dark BG   | App background, phone frame fill       |
-| `#111317`     | Card      | Bounty card background                 |
-| `#141619`     | Elevated  | Search bar, secondary surfaces         |
-| `#1E2127`     | Border    | Default card and input borders         |
-| `#1A1D22`     | Surface   | Buttons, icon backgrounds              |
-| `#EAEAEA`     | Primary text | Headlines and card titles           |
-| `#C8CDD8`     | Secondary text | Values, countdown, participants    |
-| `#9CA3AF`     | Muted text | Labels, icon strokes                  |
-| `#5A6070`     | Faint text | Column headers (Pool, Time Left, etc.) |
-| `#F87171`     | Urgent    | Countdown color when under 1 hour      |
+**AppLayout** replaces the old PhoneFrame. Every page.tsx wraps its screen in `<AppLayout>`.
 
-All colours are defined in `tailwind.config.ts` under `theme.extend.colors`.
-Use Tailwind utilities where possible (`text-[#B5F23A]`, `bg-dark-card`, etc.).
-For dynamic styles that Tailwind cannot express (box-shadow glow, gradients), use inline `style` props.
+```tsx
+// All page routes follow this pattern:
+import { AppLayout } from "@/components/layout/AppLayout";
+import { SomeScreen } from "@/components/some/SomeScreen";
+export default function SomePage() {
+  return <AppLayout><SomeScreen /></AppLayout>;
+}
+```
+
+- Desktop (md+): 240px dark Sidebar on the left, content fills the rest.
+- Mobile: Sidebar hidden, frosted-glass BottomNav (72px) fixed at bottom.
+- Screen components must NOT import or render BottomNav or Sidebar — AppLayout owns them.
+- Screen components must NOT use `fixed` positioning for their own nav — use `sticky top-0` for sticky headers.
+- Content scroll containers use `pb-20` (mobile) or `pb-8` (desktop) to clear the nav.
+
+---
+
+## Color Palette
+
+### Light theme (page surfaces)
+| Token               | Hex       | Usage                              |
+| ------------------- | --------- | ---------------------------------- |
+| `surface-page`      | `#F2F4FA` | Page background                    |
+| `surface-card`      | `#FFFFFF` | Default card background            |
+| `surface-tint`      | `#EDF0FA` | Tinted card, input backgrounds     |
+| `surface-border`    | `#E0E4F0` | Borders on light backgrounds       |
+| `surface-hover`     | `#E8EBF8` | Hover states on light surfaces     |
+
+### Dark theme (sidebar + hot cards)
+| Token               | Hex       | Usage                              |
+| ------------------- | --------- | ---------------------------------- |
+| `dark-DEFAULT`      | `#0D0E12` | Sidebar background, dark card bg   |
+| `dark-card`         | `#13151C` | Hot bounty card                    |
+| `dark-elevated`     | `#1A1D27` | Elevated surfaces within dark      |
+| `dark-border`       | `#252833` | Borders on dark backgrounds        |
+
+### Accent (never change)
+| Token               | Hex       | Usage                              |
+| ------------------- | --------- | ---------------------------------- |
+| `lime-DEFAULT`      | `#B5F23A` | Primary CTA, active state, amounts |
+| `lime-dim`          | `#8BBD1E` | Lime text on light backgrounds     |
+| `lime-border`       | `#B5F23A40` | Lime-tinted borders              |
+| `lime-subtle`       | `#B5F23A15` | Lime-tinted card backgrounds     |
+
+### Text
+Use `text-slate-900`, `text-slate-700`, `text-slate-500`, `text-slate-400` on light surfaces.
+Use `text-ink-primary` (#EAEAEA), `text-ink-secondary`, `text-ink-muted` on dark surfaces.
 
 ---
 
 ## Design Rules
 
-**Phone viewport:** The entire UI renders inside a `390x844` `PhoneFrame` component.
-All screens must respect `paddingBottom: 90` in their scroll container to clear the bottom nav.
-Never add padding or margin to the body or html element — the outer background is `#070809`.
-
-**Bottom nav:** Always fixed at the bottom of `PhoneFrame`, not the browser viewport.
-Use `absolute bottom-0` inside the frame, not `fixed`.
-
-**Scrollable areas:** Every screen has a `flex-1 overflow-y-auto scrollbar-hide` scroll container.
-Do not nest scrollable containers.
-
-**Interactive elements:** Every tappable element must have the `press-scale` CSS utility class.
-This gives the 0.96 scale-on-press feedback expected in mobile UIs.
-
-**Icons:** All icons live in `src/components/icons/index.tsx`. Do not install icon libraries.
-Bounty icons are large (36px SVG in a 64px container). Nav icons are 22px. Meta icons are 14–18px.
-
-**No hardcoded router addresses for swaps:** When STON.fi integration is added, always use
-`simulateSwap()` to get the router address dynamically. Never hardcode it.
+- Every tappable element gets the `press-scale` CSS utility class (0.96 scale on press).
+- White cards: `bg-white rounded-2xl border border-surface-border shadow-sm`
+- Dark cards: `bg-dark-card rounded-2xl border border-dark-border`
+- Tint cards: `bg-surface-tint rounded-2xl border border-surface-border`
+- All SVG icons live in `src/components/icons/index.tsx`. Never install icon libraries.
+- No hardcoded router addresses for swaps — always use `simulateSwap()` dynamically.
+- For dynamic glow/shadow styles that Tailwind cannot express, use inline `style` props.
 
 ---
 
-## Naming Conventions
+## Key Types (src/lib/types.ts)
 
-- Components: PascalCase — `BountyCard`, `DiscoverScreen`
-- Files: PascalCase for components, camelCase for lib files
-- CSS classes: Tailwind utilities only; avoid custom class names except `scrollbar-hide` and `press-scale`
-- Types: exported from `src/lib/types.ts` — import from there, never redefine locally
-- Data: mock data lives in `src/lib/data.ts` — replace with API calls when backend is wired
+```typescript
+type BountyStatus    = "active" | "ended" | "won" | "closed"
+type BountyRole      = "created" | "joined"
+type WinnerSelection = "draw" | "manual"
+type NotificationType = "winner" | "deadline" | "submission" | "funded" | "refund"
+type SubmissionStatus = "pending" | "approved" | "rejected"
+type ProofType        = "text" | "link" | "image"
+
+interface Bounty        { ..., status: "active" | "closed", creatorAddress: string }
+interface UserBounty    { ..., status: BountyStatus, role: BountyRole }
+interface ReviewBounty  { ..., perWinnerAmount: string, status: BountyStatus, creatorAddress: string }
+interface Submission    { ..., walletAddress: string, status: SubmissionStatus }
+interface AppNotification { type: NotificationType, ... }
+```
+
+`Bounty.status` must always be mapped from the DB. BountyDetailScreen uses it to guard
+the participate button — never show "Participate" when `bounty.status !== "active"`.
+
+---
+
+## TON Address + Amount Rules
+
+All TON address conversion and nanoton arithmetic lives in `src/lib/utils.ts`.
+
+```typescript
+// Convert raw "0:hexaddr" → user-friendly "UQ..." (wallet) or "EQ..." (contract)
+toFriendlyAddress(addr: string, bounceable = true): string
+
+// Convert "2.5" TON → "2500000000" nanotons (integer math, no float errors)
+tonToNanoton(ton: string): string
+```
+
+**Always** call `toFriendlyAddress(addr, false)` on wallet addresses before passing them
+to `tonConnectUI.sendTransaction()`. Raw `0:hex` addresses cause wallet rejections.
+
+**Never** use `parseFloat(amount) * 1e9` for nanoton conversion — use `tonToNanoton()`.
+
+Omniston BOC payloads are hex-encoded strings. Use `bocToBase64()` in `omniston.ts` to
+convert to standard base64 before passing to TonConnect.
+
+---
+
+## Bounty Lifecycle
+
+```
+active  ──► closed   (creator distributes prizes via multi-message TonConnect TX)
+active  ──► closed   (creator closes early via BountyDetailScreen, then reviews)
+active  ──► closed   (creator claims refund when no participants — /api/bounties/[id]/refund)
+```
+
+The DB `bounties_status_check` constraint only allows `'active'` and `'closed'`.
+Do not attempt to write any other status value to the DB.
+
+**Refund vs Prize-Distribution distinction** is UI-only:
+- `CreatorReviewScreen` tracks `refundDone` in local state.
+- There is no `"refunded"` DB status — the API writes `"closed"` in both cases.
+
+---
+
+## Notification Rules
+
+Notifications are inserted server-side (never from the frontend):
+
+| Event                        | API Route                        | Recipient          |
+| ---------------------------- | -------------------------------- | ------------------ |
+| Submission marked approved   | PATCH .../submissions/[id]       | Winner wallet      |
+| Bounty closed (prizes sent)  | POST .../close                   | All approved subs  |
+| Refund initiated             | POST .../refund                  | Creator wallet     |
+
+Use `void supabase.from("notifications").insert(...)` — fire-and-forget, never block the
+response on notification insertion.
+
+---
+
+## API Route Conventions
+
+- All routes use the Supabase service role key (bypasses RLS).
+- Always return `NextResponse.json({ error: "..." }, { status: N })` on failure.
+- Validate required fields at the top of each handler before any DB call.
+- Creator-only actions (close, refund, review) verify `creator_address === body.creatorAddress`.
+- The participate route returns 403 if `creator_address === body.walletAddress`.
+- Notification inserts are fire-and-forget: `void supabase.from("notifications").insert(...)`.
+
+---
+
+## Adding a New Screen
+
+1. Create `src/components/{name}/{Name}Screen.tsx` with `"use client"` at the top.
+2. Create `src/app/{name}/page.tsx` wrapping the screen in `<AppLayout>`.
+3. Wire the nav tab in `Sidebar.tsx` and `BottomNav.tsx`.
+4. Add new types to `src/lib/types.ts`, new API helpers to `src/lib/api.ts`.
+5. Run `npm run build` — zero errors required before committing.
+
+---
+
+## Adding a New API Route
+
+1. Create `src/app/api/{path}/route.ts`.
+2. Import `getSupabaseServer` from `@/lib/supabase`.
+3. Return typed responses via `NextResponse.json`.
+4. Add a fetch wrapper in `src/lib/api.ts`.
+5. Confirm `npm run build` passes.
 
 ---
 
@@ -122,49 +271,23 @@ npm run lint     # ESLint check
 npm run start    # Start production server after build
 ```
 
-The build must always pass cleanly. Never commit code that fails `npm run build`.
+---
+
+## What Is NOT Yet Built
+
+Do not stub or mock these — wait until the real implementation is ready:
+
+- Tact smart contracts (BountyFactory, EscrowContract) — on-chain fund custody
+- Telegram Mini App SDK integration (initData validation, theme params, viewport API)
+- TON HTTP API v2 transaction confirmation (verify prizes landed on-chain)
+- Draw-based winner selection (currently only manual selection is implemented)
+- Profile stats (TON earned, bounties count) wired to real DB aggregates
+- Image proof upload (type exists, upload to storage not yet wired)
+- Referral and vault distribution system
 
 ---
 
-## Adding a New Screen
-
-1. Create `src/components/{screen-name}/{ScreenName}Screen.tsx` with a `"use client"` directive.
-2. Create a route at `src/app/{screen-name}/page.tsx` that wraps it in `<PhoneFrame>`.
-3. Wire the relevant bottom nav tab to navigate to the new route.
-4. Add any new types to `src/lib/types.ts` and any new mock data to `src/lib/data.ts`.
-5. Run `npm run build` and confirm zero errors before considering the screen done.
-
----
-
-## Adding a New Bounty Card Data Field
-
-1. Add the field to the `Bounty` interface in `src/lib/types.ts`.
-2. Update all entries in `src/lib/data.ts` with the new field.
-3. Update `BountyCard.tsx` to render it.
-4. Check that `npm run build` still passes.
-
----
-
-## What Is Not Yet Built
-
-These are planned but not present in the repo yet. Do not stub or mock them
-unless explicitly asked — wait until the real implementation is ready.
-
-- TonConnect wallet integration
-- Supabase database connection (Prisma schema)
-- Express backend and REST API
-- Tact smart contracts (BountyFactory, EscrowContract)
-- Omniston / StonFi swap integration
-- Bounty detail page and proof submission flow
-- Create Bounty form
-- My Bounties dashboard
-- Notifications screen
-- Profile screen
-- Telegram Mini App SDK integration (initData, theme, viewport)
-
----
-
-## TON-Specific Rules (for when contracts are added)
+## TON-Specific Rules
 
 - Contracts handle fund custody and release only — no business logic on-chain.
 - Every contract must have explicit bounce handlers. A missing bounce handler means lost funds.

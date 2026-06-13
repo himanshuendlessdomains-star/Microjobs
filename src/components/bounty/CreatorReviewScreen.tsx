@@ -156,6 +156,7 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
   const [distributeStep, setDistributeStep] = useState<"idle" | "ready" | "signing" | "closing" | "done">("idle");
   const [refunding, setRefunding] = useState(false);
   const [refundError, setRefundError] = useState("");
+  const [refundNeedsMigration, setRefundNeedsMigration] = useState(false);
   const [refundDone, setRefundDone] = useState(false);
 
   const load = useCallback(() => {
@@ -251,11 +252,16 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
     if (!bounty || !rawAddress) return;
     setRefunding(true);
     setRefundError("");
+    setRefundNeedsMigration(false);
     try {
       await requestRefund(bountyId, rawAddress);
       setRefundDone(true);
     } catch (err) {
-      setRefundError(err instanceof Error ? err.message : "Refund request failed.");
+      const typedErr = err as Error & { needsMigration?: boolean };
+      if (typedErr.needsMigration) {
+        setRefundNeedsMigration(true);
+      }
+      setRefundError(typedErr instanceof Error ? typedErr.message : "Refund request failed.");
     } finally {
       setRefunding(false);
     }
@@ -474,7 +480,22 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
                   </div>
                 </div>
 
-                {refundError && (
+                {refundNeedsMigration && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-3">
+                    <p className="text-xs font-bold text-amber-800 mb-1">One-time database migration required</p>
+                    <p className="text-xs text-amber-700 mb-2 leading-relaxed">
+                      Your database only allows <code className="bg-amber-100 px-1 rounded font-mono">active</code> status. Run this SQL once in your{" "}
+                      <span className="font-semibold">Supabase SQL Editor</span> then try again:
+                    </p>
+                    <pre className="bg-amber-100 border border-amber-200 rounded-xl px-3 py-2.5 text-[11px] font-mono text-amber-900 leading-relaxed overflow-x-auto whitespace-pre-wrap break-all select-all">
+{`ALTER TABLE bounties DROP CONSTRAINT bounties_status_check;
+ALTER TABLE bounties ADD CONSTRAINT bounties_status_check
+  CHECK (status IN ('active', 'closed'));`}
+                    </pre>
+                  </div>
+                )}
+
+                {refundError && !refundNeedsMigration && (
                   <div className="bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl px-3 py-2 mb-3 leading-relaxed">
                     {refundError}
                   </div>
