@@ -7,10 +7,49 @@ import { SearchBar } from "./SearchBar";
 import { CategoryFilter } from "./CategoryFilter";
 import { BountyCard } from "./BountyCard";
 import { CATEGORIES } from "@/lib/data";
-import { getBounties } from "@/lib/api";
-import type { Bounty } from "@/lib/types";
+import { getBounties, getPlatformStats } from "@/lib/api";
+import type { Bounty, PlatformStats } from "@/lib/types";
+import { formatTON } from "@/lib/utils";
 
 type Category = (typeof CATEGORIES)[number];
+
+function PlatformStatsBar({ stats }: { stats: PlatformStats | null }) {
+  function fmt(n: number) {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+    return formatTON(String(n));
+  }
+
+  const items = [
+    { label: "Escrow", value: stats ? `${fmt(stats.totalEscrow)} TON` : "—", desc: "Locked in active bounties" },
+    { label: "Claimable", value: stats ? `${fmt(stats.totalClaimable)} TON` : "—", desc: "Refundable by creators" },
+    { label: "Distributed", value: stats ? `${fmt(stats.totalDistributed)} TON` : "—", desc: "Paid to winners" },
+    { label: "Closed", value: stats ? String(stats.bountiesClosed) : "—", desc: "Bounties finalized" },
+  ];
+
+  return (
+    <div
+      className="mt-3 rounded-2xl border border-dark-border p-4"
+      style={{ background: "#0D0E12" }}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-1.5 h-1.5 rounded-full bg-lime animate-pulse" />
+        <p className="text-xs font-semibold text-ink-muted tracking-wide uppercase">
+          Platform Escrow — Live & Transparent
+        </p>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {items.map(({ label, value, desc }) => (
+          <div key={label} className="bg-dark-elevated rounded-xl p-3">
+            <p className="text-[10px] text-ink-faint uppercase tracking-widest">{label}</p>
+            <p className="text-sm font-black text-lime mt-0.5">{value}</p>
+            <p className="text-[10px] text-ink-muted mt-0.5 leading-tight">{desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function DiscoverScreen() {
   const router = useRouter();
@@ -19,6 +58,7 @@ export function DiscoverScreen() {
   const [bounties, setBounties] = useState<Bounty[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,6 +78,12 @@ export function DiscoverScreen() {
     const t = setTimeout(load, search ? 400 : 0);
     return () => clearTimeout(t);
   }, [load, search]);
+
+  useEffect(() => {
+    getPlatformStats()
+      .then(setPlatformStats)
+      .catch(() => {});
+  }, []);
 
   const hotBounties = bounties.filter((b) => b.isHot);
   const allBounties = bounties.filter((b) => !b.isHot);
@@ -63,6 +109,8 @@ export function DiscoverScreen() {
             <SearchBar value={search} onChange={setSearch} dark />
           </div>
         </div>
+
+        <PlatformStatsBar stats={platformStats} />
 
         {/* ── Category filter ── */}
         <div className="mt-4">

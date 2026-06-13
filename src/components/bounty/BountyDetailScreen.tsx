@@ -341,24 +341,84 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
 
         {/* ── Participants card ── */}
         <div className="mt-3 bg-white rounded-2xl shadow-sm border border-surface-border p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">Participants</p>
-          <div className="flex items-center gap-2">
-            <div className="flex -space-x-2">
-              {["#B5F23A", "#60A5FA", "#A78BFA", "#F59E0B"].map((c, i) => (
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Participants</p>
+            <span className="text-sm font-black text-slate-900">{bounty.participants.toLocaleString()}</span>
+          </div>
+          {bounty.participants === 0 ? (
+            <p className="text-xs text-slate-400">No participants yet — be the first!</p>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="flex -space-x-2">
+                {Array.from({ length: Math.min(bounty.participants, 5) }).map((_, i) => {
+                  const colors = ["#B5F23A", "#60A5FA", "#A78BFA", "#F59E0B", "#34D399"];
+                  return (
+                    <div
+                      key={i}
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                      style={{ background: colors[i % colors.length], color: "#0D0E12", border: "2px solid #FFFFFF" }}
+                    >
+                      {String.fromCharCode(65 + i)}
+                    </div>
+                  );
+                })}
+              </div>
+              {bounty.participants > 5 && (
+                <p className="text-xs text-slate-400">
+                  +{(bounty.participants - 5).toLocaleString()} more joined
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Winners card (only when closed) ── */}
+        {bounty.status === "closed" && bounty.winners && bounty.winners.length > 0 && (
+          <div className="mt-3 bg-white rounded-2xl shadow-sm border border-surface-border p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Winners</p>
+              <span className="text-xs font-bold text-lime-dim">{bounty.winners.length} selected</span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {bounty.winners.map((addr, i) => (
                 <div
-                  key={i}
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                  style={{ background: c, color: "#0D0E12", border: "2px solid #FFFFFF" }}
+                  key={addr}
+                  className="flex items-center gap-3 p-3 bg-lime-subtle/30 border border-lime-border rounded-xl"
                 >
-                  {String.fromCharCode(65 + i)}
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+                    style={{ background: "#B5F23A", color: "#0D0E12" }}
+                  >
+                    {i + 1}
+                  </div>
+                  <p className="font-mono text-xs text-slate-700 truncate flex-1">
+                    {addr.slice(0, 10)}...{addr.slice(-8)}
+                  </p>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <TonDiamond size={12} />
+                    <span className="text-xs font-bold text-lime-dim">{formatTON(bounty.perWinnerAmount)}</span>
+                  </div>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-text-muted">
-              +{(bounty.participants - 4).toLocaleString()} more joined
-            </p>
           </div>
-        </div>
+        )}
+
+        {/* ── Refunded state ── */}
+        {bounty.status === "closed" && (!bounty.winners || bounty.winners.length === 0) && (
+          <div className="mt-3 bg-surface-tint rounded-2xl border border-surface-border p-4 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white border border-surface-border flex items-center justify-center flex-shrink-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 8V12M12 16H12.01" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" />
+                <circle cx="12" cy="12" r="9" stroke="#94A3B8" strokeWidth="2" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-600">Bounty Refunded</p>
+              <p className="text-xs text-slate-400 mt-0.5">No winners were selected. Pool returned to creator.</p>
+            </div>
+          </div>
+        )}
 
         {/* ── Submission status if participated ── */}
         {participated && (

@@ -98,7 +98,7 @@ export function mapUserBounty(
   if (row.status === "closed") {
     status = role === "joined" && submissionStatus === "approved" ? "won" : "closed";
   } else if (row.status === "active") {
-    status = "active";
+    status = timeLeftSeconds === 0 ? "ended" : "active";
   } else if (role === "joined" && submissionStatus === "approved") {
     status = "won";
   } else {

@@ -8,6 +8,7 @@ import type {
   ReviewBounty,
   SubmissionStatus,
   UserStats,
+  PlatformStats,
 } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -122,6 +123,10 @@ export async function requestRefund(
     throw err;
   }
   return res.json() as Promise<{ poolAmount: number }>;
+}
+
+export async function getPlatformStats(): Promise<PlatformStats> {
+  return get<PlatformStats>("/api/stats");
 }
 
 export async function getUserStats(walletAddress: string): Promise<UserStats> {

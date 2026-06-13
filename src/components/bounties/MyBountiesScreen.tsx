@@ -15,7 +15,7 @@ import {
   SpinnerIcon,
 } from "@/components/icons";
 import { cn, formatCountdown, formatTON } from "@/lib/utils";
-import { getUserBounties } from "@/lib/api";
+import { getUserBounties, requestRefund } from "@/lib/api";
 import { useWallet } from "@/hooks/useTonWallet";
 import type { UserBounty, BountyRole } from "@/lib/types";
 
@@ -61,9 +61,11 @@ function StatusBadge({ status }: { status: UserBounty["status"] }) {
 function UserBountyRow({
   bounty,
   onReview,
+  onRefund,
 }: {
   bounty: UserBounty;
   onReview?: (id: string) => void;
+  onRefund?: (id: string) => void;
 }) {
   const [seconds, setSeconds] = useState(bounty.timeLeftSeconds);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -122,20 +124,30 @@ function UserBountyRow({
             <p className="text-xs text-slate-400">Ended</p>
           )}
           {bounty.status === "ended" && bounty.role === "created" && (
-            <p className="text-xs text-slate-400">
-              Ended &middot; {bounty.winnerCount} winner{bounty.winnerCount > 1 ? "s" : ""} selected
-            </p>
+            <p className="text-xs text-slate-400">Deadline passed — no prize distributed</p>
           )}
         </div>
       </div>
 
-      {bounty.role === "created" && onReview && (
-        <button
-          onClick={() => onReview(bounty.id)}
-          className="mt-2 text-xs font-semibold text-lime-dim hover:text-text-primary transition-colors duration-150 press-scale"
-        >
-          Review Submissions &rarr;
-        </button>
+      {bounty.role === "created" && (
+        <div className="mt-2 flex items-center gap-3">
+          {onReview && (
+            <button
+              onClick={() => onReview(bounty.id)}
+              className="text-xs font-semibold text-lime-dim hover:text-text-primary transition-colors duration-150 press-scale"
+            >
+              {bounty.status === "ended" ? "Review & Refund →" : "Review Submissions →"}
+            </button>
+          )}
+          {bounty.status === "ended" && onRefund && (
+            <button
+              onClick={() => onRefund(bounty.id)}
+              className="text-xs font-semibold text-red-400 border border-red-200 rounded-lg px-2.5 py-1 press-scale"
+            >
+              Claim Refund
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -220,6 +232,8 @@ export function MyBountiesScreen() {
   const [allBounties, setAllBounties] = useState<UserBounty[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [refunding, setRefunding] = useState<string | null>(null);
+  const [refundMsg, setRefundMsg] = useState("");
 
   useEffect(() => {
     if (!isConnected || !rawAddress) return;
@@ -230,6 +244,24 @@ export function MyBountiesScreen() {
       .catch(() => setError("Could not load your bounties."))
       .finally(() => setLoading(false));
   }, [isConnected, rawAddress]);
+
+  async function handleRefund(bountyId: string) {
+    if (!rawAddress || refunding) return;
+    setRefunding(bountyId);
+    setRefundMsg("");
+    try {
+      await requestRefund(bountyId, rawAddress);
+      setRefundMsg("Refund initiated — your pool will be returned to your wallet.");
+      // Reload bounties to update the list
+      const updated = await getUserBounties(rawAddress);
+      setAllBounties(updated);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Refund failed. Please try again.";
+      setRefundMsg(msg);
+    } finally {
+      setRefunding(null);
+    }
+  }
 
   const bounties =
     tab === "joined"
@@ -277,6 +309,16 @@ export function MyBountiesScreen() {
               ))}
             </div>
 
+            {refundMsg && (
+              <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${
+                refundMsg.includes("initiated")
+                  ? "bg-lime-subtle text-lime-dim border border-lime-border"
+                  : "bg-red-50 text-red-600 border border-red-200"
+              }`}>
+                {refundMsg}
+              </div>
+            )}
+
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <SpinnerIcon size={28} />
@@ -298,6 +340,7 @@ export function MyBountiesScreen() {
                   key={b.id}
                   bounty={b}
                   onReview={b.role === "created" ? (id) => router.push(`/review/${id}`) : undefined}
+                  onRefund={b.role === "created" && b.status === "ended" ? handleRefund : undefined}
                 />
               ))
             )}

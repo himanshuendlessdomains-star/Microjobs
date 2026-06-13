@@ -26,6 +26,7 @@ export interface Bounty {
   creatorAvatar?: string;
   entryFee?: string;
   status: "active" | "closed";
+  winners?: string[];
 }
 
 export interface UserBounty {
@@ -103,6 +104,14 @@ export interface SwapTokenInfo {
   color: string;
   isNative: boolean;
   jettonAddress?: string;
+}
+
+export interface PlatformStats {
+  totalEscrow: number;
+  totalClaimable: number;
+  totalDistributed: number;
+  bountiesClosed: number;
+  bountiesActive: number;
 }
 
 export interface UserStats {
