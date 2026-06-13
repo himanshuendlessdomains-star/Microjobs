@@ -180,7 +180,7 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
 
   const handleStatusChange = useCallback(
     async (submissionId: string, status: SubmissionStatus) => {
-      if (!rawAddress) return;
+      if (!rawAddress || !bounty || rawAddress.toLowerCase() !== bounty.creatorAddress.toLowerCase()) return;
       setActionError("");
       try {
         await updateSubmission(bountyId, submissionId, status, rawAddress);
@@ -202,7 +202,7 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
   );
 
   const handleFinalize = useCallback(async () => {
-    if (!bounty || !rawAddress) return;
+    if (!bounty || !rawAddress || rawAddress.toLowerCase() !== bounty.creatorAddress.toLowerCase()) return;
     const winners = submissions.filter((s) => s.status === "approved");
     if (!winners.length) return;
 
@@ -254,7 +254,7 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
   }, [bounty, bountyId, rawAddress, submissions, tonConnectUI]);
 
   const handleRefund = useCallback(async () => {
-    if (!bounty || !rawAddress) return;
+    if (!bounty || !rawAddress || rawAddress.toLowerCase() !== bounty.creatorAddress.toLowerCase()) return;
     setRefunding(true);
     setRefundError("");
     setRefundNeedsMigration(false);
@@ -272,13 +272,18 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
     }
   }, [bounty, bountyId, rawAddress]);
 
+  const isOwner =
+    !!rawAddress &&
+    !!bounty &&
+    rawAddress.toLowerCase() === bounty.creatorAddress.toLowerCase();
+
   const isClosed = bounty?.status === "closed" || distributeStep === "done" || refundDone;
   const isRefunded = refundDone;
-  const canApprove = bounty ? approvedCount < bounty.winnerCount : false;
-  const canFinalize = approvedCount > 0 && !isClosed;
+  const canApprove = isOwner && bounty ? approvedCount < bounty.winnerCount : false;
+  const canFinalize = isOwner && approvedCount > 0 && !isClosed;
   const allSlotsReady = bounty ? approvedCount >= bounty.winnerCount : false;
-  // Refund eligible when: no winners approved, bounty isn't already closed/refunded, creator connected
-  const canRefund = !isClosed && approvedCount === 0 && !!rawAddress;
+  // Refund eligible when: creator is connected, no winners approved, bounty not already closed
+  const canRefund = isOwner && !isClosed && approvedCount === 0;
   const BountyIcon = bounty ? ICON_MAP[bounty.icon] : null;
 
   const distributeLabel = (() => {
@@ -324,6 +329,39 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <span className="text-3xl">⚠️</span>
             <p className="text-sm text-text-muted">{error}</p>
+          </div>
+        ) : bounty && !rawAddress ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-center px-4">
+            <div className="w-14 h-14 rounded-2xl bg-surface-tint flex items-center justify-center">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <rect x="5" y="11" width="14" height="10" rx="2" stroke="#7A8099" strokeWidth="1.5" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="#7A8099" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </div>
+            <p className="text-sm font-semibold text-slate-900">Creator access only</p>
+            <p className="text-xs text-slate-500" style={{ maxWidth: 260 }}>
+              Connect the wallet that created this bounty to review submissions.
+            </p>
+          </div>
+        ) : bounty && rawAddress && !isOwner ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-center px-4">
+            <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="#F87171" strokeWidth="1.5" />
+                <path d="M15 9L9 15M9 9L15 15" stroke="#F87171" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </div>
+            <p className="text-sm font-semibold text-slate-900">Access denied</p>
+            <p className="text-xs text-slate-500" style={{ maxWidth: 260 }}>
+              Only the creator of this bounty can review submissions and distribute prizes.
+            </p>
+            <button
+              onClick={() => router.back()}
+              className="text-xs font-bold px-5 py-2.5 rounded-xl press-scale"
+              style={{ background: "#B5F23A", color: "#0D0E12" }}
+            >
+              Go back
+            </button>
           </div>
         ) : bounty ? (
           <>

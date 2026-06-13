@@ -123,7 +123,7 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
   const isUrgent = seconds > 0 && seconds < 3600;
   const hasEntryFee = !!bounty.entryFee;
   const categoryColor = CATEGORY_COLORS[bounty.category] ?? "#B5F23A";
-  const isCreator = !!rawAddress && rawAddress === bounty.creatorAddress;
+  const isCreator = !!rawAddress && rawAddress.toLowerCase() === bounty.creatorAddress.toLowerCase();
   const hot = bounty.isHot;
 
   async function handleEarlyClose() {
@@ -497,9 +497,13 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
                 Bounty Closed
               </div>
             ) : !isConnected ? (
-              <div className="p-3 rounded-xl text-center text-xs text-text-muted bg-surface-tint border border-surface-border">
-                Connect your wallet in Profile to participate
-              </div>
+              <button
+                onClick={() => tonConnectUI.openModal()}
+                className="w-full py-3 rounded-xl font-bold text-sm press-scale"
+                style={{ background: "#B5F23A", color: "#0D0E12", boxShadow: "0 0 20px 4px rgba(181,242,58,0.25)" }}
+              >
+                Connect Wallet to Participate
+              </button>
             ) : seconds === 0 ? (
               <div className="py-3 rounded-xl text-center text-sm font-bold text-text-faint bg-surface-tint border border-surface-border">
                 Bounty Ended
