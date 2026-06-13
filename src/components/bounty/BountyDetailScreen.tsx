@@ -378,7 +378,16 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
         <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-surface-border px-4 py-3 pb-[env(safe-area-inset-bottom,12px)] md:relative md:z-auto md:mt-6 md:bg-transparent md:backdrop-blur-none md:border-0 md:px-0 md:py-0 md:pb-0">
           <div className="max-w-2xl mx-auto">
             {isCreator ? (
-              earlyCloseConfirm ? (
+              bounty.status !== "active" ? (
+                // Bounty already closed — only show Review, no early-close option
+                <button
+                  onClick={() => router.push(`/review/${bountyId}`)}
+                  className="w-full py-3 rounded-xl font-bold text-sm press-scale"
+                  style={{ background: "#B5F23A", color: "#0D0E12", boxShadow: "0 0 20px 4px rgba(181,242,58,0.25)" }}
+                >
+                  Review Submissions
+                </button>
+              ) : earlyCloseConfirm ? (
                 <div className="flex flex-col gap-2">
                   <p className="text-xs text-center text-text-muted mb-1">
                     This will end the bounty immediately. Winners can still be selected after.
@@ -420,6 +429,11 @@ export function BountyDetailScreen({ bountyId }: { bountyId: string }) {
                   )}
                 </div>
               )
+            ) : bounty.status !== "active" ? (
+              // Closed bounty — non-creator sees a closed state, no participate button
+              <div className="py-3 rounded-xl text-center text-sm font-bold text-slate-400 bg-surface-tint border border-surface-border">
+                Bounty Closed
+              </div>
             ) : !isConnected ? (
               <div className="p-3 rounded-xl text-center text-xs text-text-muted bg-surface-tint border border-surface-border">
                 Connect your wallet in Profile to participate

@@ -253,7 +253,6 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
     setRefundError("");
     try {
       await requestRefund(bountyId, rawAddress);
-      setBounty((b) => (b ? { ...b, status: "refunded" } : b));
       setRefundDone(true);
     } catch (err) {
       setRefundError(err instanceof Error ? err.message : "Refund request failed.");
@@ -262,8 +261,8 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
     }
   }, [bounty, bountyId, rawAddress]);
 
-  const isClosed = bounty?.status === "closed" || bounty?.status === "refunded" || distributeStep === "done" || refundDone;
-  const isRefunded = bounty?.status === "refunded" || refundDone;
+  const isClosed = bounty?.status === "closed" || distributeStep === "done" || refundDone;
+  const isRefunded = refundDone;
   const canApprove = bounty ? approvedCount < bounty.winnerCount : false;
   const canFinalize = approvedCount > 0 && !isClosed;
   const allSlotsReady = bounty ? approvedCount >= bounty.winnerCount : false;

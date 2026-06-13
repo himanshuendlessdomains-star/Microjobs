@@ -81,6 +81,7 @@ export function mapBounty(row: DbBounty): Bounty {
     creatorAddress: row.creator_address,
     creatorAvatar: row.creator_avatar ?? undefined,
     entryFee: row.entry_fee != null ? String(row.entry_fee) : undefined,
+    status: row.status === "active" ? "active" : "closed",
   };
 }
 
@@ -94,9 +95,7 @@ export function mapUserBounty(
     Math.floor((new Date(row.deadline_at).getTime() - Date.now()) / 1000)
   );
   let status: BountyStatus;
-  if (row.status === "refunded") {
-    status = "refunded";
-  } else if (row.status === "closed") {
+  if (row.status === "closed") {
     status = role === "joined" && submissionStatus === "approved" ? "won" : "closed";
   } else if (row.status === "active") {
     status = "active";

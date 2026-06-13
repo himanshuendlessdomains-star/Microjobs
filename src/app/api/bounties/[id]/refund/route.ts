@@ -36,13 +36,7 @@ export async function POST(
     }
 
     if (b.status === "closed") {
-      return NextResponse.json(
-        { error: "This bounty already has prizes distributed and cannot be refunded." },
-        { status: 409 }
-      );
-    }
-
-    if (b.status === "refunded") {
+      // Already closed — could be a duplicate refund request, treat as idempotent
       return NextResponse.json({ ok: true, alreadyRefunded: true });
     }
 
@@ -60,10 +54,10 @@ export async function POST(
       );
     }
 
-    // Mark bounty as refunded
+    // Close the bounty (same status as prize distribution — DB only allows 'active' | 'closed')
     const { error } = await supabase
       .from("bounties")
-      .update({ status: "refunded" })
+      .update({ status: "closed" })
       .eq("id", params.id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

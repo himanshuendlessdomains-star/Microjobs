@@ -1,7 +1,7 @@
 export type WinnerSelection = "draw" | "manual";
 export type BountyType = "task" | "quiz" | "creative";
 export type Category = "All" | "Creative" | "Social" | "Analytics" | "Dev";
-export type BountyStatus = "active" | "ended" | "won" | "closed" | "refunded";
+export type BountyStatus = "active" | "ended" | "won" | "closed";
 export type BountyRole = "created" | "joined";
 export type NotificationType = "winner" | "deadline" | "submission" | "funded" | "refund";
 export type ProofType = "text" | "link" | "image";
@@ -25,6 +25,7 @@ export interface Bounty {
   creatorAddress: string;
   creatorAvatar?: string;
   entryFee?: string;
+  status: "active" | "closed";
 }
 
 export interface UserBounty {
