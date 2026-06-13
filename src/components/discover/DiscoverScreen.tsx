@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TonDiamond, PlusIcon, SpinnerIcon } from "@/components/icons";
 import { SearchBar } from "./SearchBar";
@@ -94,29 +94,36 @@ export function DiscoverScreen() {
   const [error, setError] = useState("");
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
 
-  const loadStats = useCallback(() => {
-    getPlatformStats().then(setPlatformStats).catch(() => {});
-  }, []);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    loadStats();
-    try {
-      const data = await getBounties({ category, search });
-      setBounties(data);
-    } catch {
-      setError("Could not load bounties.");
-      setBounties([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [category, search, loadStats]);
-
   useEffect(() => {
-    const t = setTimeout(load, search ? 400 : 0);
-    return () => clearTimeout(t);
-  }, [load, search]);
+    // AbortController cancels stale responses when category/search change quickly.
+    const controller = new AbortController();
+    const delay = search ? 400 : 0;
+
+    const t = setTimeout(async () => {
+      setLoading(true);
+      setError("");
+
+      // Stats are best-effort and independent of the bounty fetch.
+      getPlatformStats().then(setPlatformStats).catch(() => {});
+
+      try {
+        const data = await getBounties({ category, search });
+        if (!controller.signal.aborted) setBounties(data);
+      } catch {
+        if (!controller.signal.aborted) {
+          setError("Could not load bounties.");
+          setBounties([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }, delay);
+
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
+  }, [category, search]);
 
   const hotBounties = bounties.filter((b) => b.isHot);
   const allBounties = bounties.filter((b) => !b.isHot);
@@ -158,7 +165,7 @@ export function DiscoverScreen() {
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <span className="text-3xl">⚠️</span>
             <p className="text-slate-500 text-sm font-medium">{error}</p>
-            <button onClick={load} className="text-xs text-lime-dim font-semibold press-scale">
+            <button onClick={() => setError("")} className="text-xs text-lime-dim font-semibold press-scale">
               Retry
             </button>
           </div>

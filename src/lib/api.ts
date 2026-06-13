@@ -71,6 +71,18 @@ export async function createBounty(
   return post<Bounty & { escrowDeployTx: EscrowDeployTx | null }>("/api/bounties", data);
 }
 
+export async function confirmBounty(bountyId: string, creatorAddress: string): Promise<void> {
+  const res = await fetch(`${BASE}/api/bounties/${bountyId}/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ creatorAddress }),
+  });
+  if (!res.ok) {
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(json.error ?? `API ${res.status}`);
+  }
+}
+
 export async function getEscrowTx(
   bountyId: string,
   creatorAddress: string,

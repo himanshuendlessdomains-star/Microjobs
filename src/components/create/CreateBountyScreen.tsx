@@ -13,7 +13,7 @@ import {
 import { SwapModal } from "@/components/bounty/SwapModal";
 import { useWallet } from "@/hooks/useTonWallet";
 import { cn } from "@/lib/utils";
-import { createBounty } from "@/lib/api";
+import { createBounty, confirmBounty } from "@/lib/api";
 import { tonToNanoton } from "@/lib/utils";
 import type { CreateBountyFormData, BountyType, WinnerSelection } from "@/lib/types";
 
@@ -160,6 +160,8 @@ export function CreateBountyScreen() {
             ],
           });
         } catch (txErr) {
+          // Wallet rejected — the bounty record in DB is unfunded (funded=false) and
+          // will not appear in discovery. No action needed.
           setLaunchError(
             txErr instanceof Error ? txErr.message : "Wallet rejected the transaction."
           );
@@ -187,6 +189,15 @@ export function CreateBountyScreen() {
           setLaunching(false);
           return;
         }
+      }
+
+      // Wallet transaction confirmed — mark the bounty as funded so it appears in discovery.
+      // Silently ignore errors here (e.g. funded column not yet migrated); bounty is still
+      // live in that case via the backward-compat fallback in GET /api/bounties.
+      try {
+        await confirmBounty(result.id, rawAddress);
+      } catch {
+        // Non-fatal — the bounty was created; the funded flag is a best-effort gate.
       }
 
       setCreatedBountyId(result.id ?? null);
@@ -557,11 +568,31 @@ export function CreateBountyScreen() {
                       value: DURATIONS.find((d) => d.value === form.durationHours)?.label ?? "",
                     },
                     {
-                      label: "Pool",
+                      label: "Prize Pool",
                       value: (
                         <div className="flex items-center gap-1.5">
                           <TonDiamond size={13} />
                           <span className="text-slate-900 font-black">{form.poolAmount} TON</span>
+                        </div>
+                      ),
+                    },
+                    {
+                      label: "Gas Deposit",
+                      value: (
+                        <div className="flex items-center gap-1.5">
+                          <TonDiamond size={13} />
+                          <span className="text-slate-500 font-semibold">0.2 TON</span>
+                        </div>
+                      ),
+                    },
+                    {
+                      label: "You Send",
+                      value: (
+                        <div className="flex items-center gap-1.5">
+                          <TonDiamond size={13} />
+                          <span className="text-lime-dim font-black">
+                            {form.poolAmount ? (parseFloat(form.poolAmount) + 0.2).toFixed(2) : "—"} TON
+                          </span>
                         </div>
                       ),
                     },
@@ -621,10 +652,13 @@ export function CreateBountyScreen() {
                 <p className="text-xs text-red-500 text-center px-2">{launchError}</p>
               )}
 
-              <p className="text-[11px] text-slate-400 text-center leading-relaxed px-2">
-                Funds are sent to the BountyHive escrow contract and released automatically when
-                winners are selected.
-              </p>
+              <div className="bg-surface-tint border border-surface-border rounded-xl p-3 text-center">
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Funds go to a per-bounty escrow contract on TON. The 0.2 TON gas deposit covers
+                  contract deployment and is returned to you when prizes are distributed or you claim
+                  a refund.
+                </p>
+              </div>
             </div>
           )}
 
@@ -668,7 +702,7 @@ export function CreateBountyScreen() {
                 {launching && <SpinnerIcon size={16} color="#0D0E12" />}
                 {launching
                   ? "Sending Transaction..."
-                  : `Fund & Launch · ${form.poolAmount || "0"} TON`}
+                  : `Fund & Launch · ${form.poolAmount ? (parseFloat(form.poolAmount) + 0.2).toFixed(2) : "0"} TON`}
               </button>
             )}
           </div>

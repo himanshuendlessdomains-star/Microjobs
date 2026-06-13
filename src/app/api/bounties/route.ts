@@ -41,7 +41,15 @@ export async function GET(request: Request) {
     if (category) query = query.eq("category", category);
     if (search) query = query.ilike("title", `%${search}%`);
 
-    const { data, error } = await query;
+    // Only show funded bounties. If the funded column doesn't exist yet (migration
+    // not run), fall back to showing all active bounties so the app still works.
+    const withFundedFilter = query.neq("funded", false);
+    let { data, error } = await withFundedFilter;
+    if (error && (error.code === "42703" || error.message?.includes("funded"))) {
+      const fallback = await query;
+      data = fallback.data;
+      error = fallback.error;
+    }
     if (error) return NextResponse.json({ error: "Failed to load bounties" }, { status: 500 });
 
     return NextResponse.json((data as DbBounty[]).map(mapBounty));
@@ -155,15 +163,47 @@ export async function POST(request: Request) {
         creator_address: body.creatorAddress,
         creator_name: (body.creatorName ?? "Anonymous").slice(0, 100),
         status: "active",
+        funded: false,
         escrow_address: escrowAddress,
         escrow_nonce: nonce,
       })
       .select()
       .single();
 
-    if (error) return NextResponse.json({ error: "Failed to create bounty" }, { status: 500 });
+    // If funded column doesn't exist yet, retry without it (backward compat)
+    let finalData = data;
+    if (error && (error.code === "42703" || error.message?.includes("funded"))) {
+      const retry = await supabase
+        .from("bounties")
+        .insert({
+          title: body.title.trim(),
+          description: (body.description ?? "").trim(),
+          type: body.type ?? "task",
+          category: body.category,
+          pool_amount: pool,
+          pool_usd: 0,
+          winner_count: winnerCount,
+          per_winner_amount: perWinner,
+          winner_selection: body.winnerSelection,
+          participants: 0,
+          deadline_at: deadlineAt.toISOString(),
+          is_hot: false,
+          icon,
+          creator_address: body.creatorAddress,
+          creator_name: (body.creatorName ?? "Anonymous").slice(0, 100),
+          status: "active",
+          escrow_address: escrowAddress,
+          escrow_nonce: nonce,
+        })
+        .select()
+        .single();
+      if (retry.error) return NextResponse.json({ error: "Failed to create bounty" }, { status: 500 });
+      finalData = retry.data;
+    } else if (error) {
+      return NextResponse.json({ error: "Failed to create bounty" }, { status: 500 });
+    }
 
-    const bounty = mapBounty(data as DbBounty);
+    const bounty = mapBounty(finalData as DbBounty);
     return NextResponse.json({ ...bounty, escrowDeployTx }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

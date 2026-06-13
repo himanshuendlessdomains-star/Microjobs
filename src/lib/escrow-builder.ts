@@ -51,7 +51,9 @@ export function buildEscrowDeployTx(
   const data = buildDataCell(creatorRaw, winnerCount, deadlineUnixSecs, nonce);
 
   const addr = contractAddress(0, { code, data });
-  const escrowAddress = addr.toString({ bounceable: false });
+  // Use bounceable: true for smart contracts — non-bounceable triggers "funds may be lost"
+  // warnings in TonConnect because failed messages have no bounce-back protection.
+  const escrowAddress = addr.toString({ bounceable: true });
 
   // StateInit cell — deploys the contract on first message
   const stateInitCell = beginCell()
