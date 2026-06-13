@@ -25,7 +25,7 @@ export async function POST(
 
     const { data: bounty } = await supabase
       .from("bounties")
-      .select("creator_address, status, title, pool_amount")
+      .select("creator_address, status, title, pool_amount, escrow_address, deadline_at")
       .eq("id", params.id)
       .single();
 
@@ -38,6 +38,8 @@ export async function POST(
       status: string;
       title: string;
       pool_amount: number;
+      escrow_address: string | null;
+      deadline_at: string;
     };
 
     if (b.creator_address.toLowerCase() !== body.creatorAddress.toLowerCase()) {
@@ -46,6 +48,15 @@ export async function POST(
 
     if (b.status === "closed") {
       return NextResponse.json({ ok: true, alreadyRefunded: true });
+    }
+
+    // For escrow bounties: the contract enforces deadline. Mirror that here so
+    // the DB never gets marked "closed" before the contract can actually release funds.
+    if (b.escrow_address && new Date(b.deadline_at) > new Date()) {
+      return NextResponse.json(
+        { error: "Bounty deadline has not passed yet. Refund is available after the deadline." },
+        { status: 409 }
+      );
     }
 
     // Block refund only if winners have been approved — pending/rejected submissions are fine

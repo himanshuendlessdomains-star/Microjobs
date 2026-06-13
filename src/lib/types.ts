@@ -97,6 +97,7 @@ export interface ReviewBounty {
   creatorAddress: string;
   status: BountyStatus;
   escrowAddress?: string;
+  deadlineAt?: string;
 }
 
 export interface SwapTokenInfo {

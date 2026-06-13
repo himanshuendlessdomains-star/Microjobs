@@ -311,8 +311,16 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
   const canApprove = isOwner && bounty ? approvedCount < bounty.winnerCount : false;
   const canFinalize = isOwner && approvedCount > 0 && !isClosed;
   const allSlotsReady = bounty ? approvedCount >= bounty.winnerCount : false;
-  // Refund eligible when: creator is connected, no winners approved, bounty not already closed
-  const canRefund = isOwner && !isClosed && approvedCount === 0;
+
+  // For escrow bounties the contract blocks Cancel until deadline passes.
+  // Compute whether deadline has passed so we can match that restriction in the UI.
+  const deadlinePassedForRefund = bounty?.escrowAddress
+    ? bounty.deadlineAt ? new Date(bounty.deadlineAt).getTime() <= Date.now() : false
+    : true; // hot-wallet bounties have no on-chain deadline lock
+
+  const canRefund = isOwner && !isClosed && approvedCount === 0 && deadlinePassedForRefund;
+  // Show a "refund pending deadline" notice for escrow bounties before deadline
+  const showRefundPendingDeadline = isOwner && !isClosed && approvedCount === 0 && !deadlinePassedForRefund && !!bounty?.escrowAddress;
   const BountyIcon = bounty ? ICON_MAP[bounty.icon] : null;
 
   const distributeLabel = (() => {
@@ -523,6 +531,24 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
                   <p className="text-sm font-bold text-slate-900">Refund initiated</p>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Your pool of {formatTON(bounty?.poolAmount ?? "0")} TON is being returned to your wallet. You will receive a notification once complete.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Escrow refund pending deadline notice */}
+            {showRefundPendingDeadline && (
+              <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="#D97706" strokeWidth="1.5" />
+                    <path d="M12 7v5l3 3" stroke="#D97706" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">Refund available after deadline</p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    Your funds are locked in the escrow contract until the bounty deadline passes. Return here after the deadline to claim your refund.
                   </p>
                 </div>
               </div>
