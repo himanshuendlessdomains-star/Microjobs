@@ -37,7 +37,7 @@ export async function POST(
       per_winner_amount: number | null;
     };
 
-    if (b.creator_address !== body.creatorAddress) {
+    if (b.creator_address.toLowerCase() !== body.creatorAddress.toLowerCase()) {
       return NextResponse.json({ error: "Only the creator can close this bounty" }, { status: 403 });
     }
 

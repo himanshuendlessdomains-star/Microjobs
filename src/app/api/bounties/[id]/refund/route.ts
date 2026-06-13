@@ -40,7 +40,7 @@ export async function POST(
       pool_amount: number;
     };
 
-    if (b.creator_address !== body.creatorAddress) {
+    if (b.creator_address.toLowerCase() !== body.creatorAddress.toLowerCase()) {
       return NextResponse.json({ error: "Only the creator can claim a refund" }, { status: 403 });
     }
 

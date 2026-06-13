@@ -15,7 +15,7 @@ import {
   SpinnerIcon,
 } from "@/components/icons";
 import { cn, formatCountdown, formatTON } from "@/lib/utils";
-import { getUserBounties, requestRefund } from "@/lib/api";
+import { getUserBounties } from "@/lib/api";
 import { useWallet } from "@/hooks/useTonWallet";
 import type { UserBounty, BountyRole } from "@/lib/types";
 
@@ -232,8 +232,6 @@ export function MyBountiesScreen() {
   const [allBounties, setAllBounties] = useState<UserBounty[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [refunding, setRefunding] = useState<string | null>(null);
-  const [refundMsg, setRefundMsg] = useState("");
 
   useEffect(() => {
     if (!isConnected || !rawAddress) return;
@@ -245,22 +243,11 @@ export function MyBountiesScreen() {
       .finally(() => setLoading(false));
   }, [isConnected, rawAddress]);
 
-  async function handleRefund(bountyId: string) {
-    if (!rawAddress || refunding) return;
-    setRefunding(bountyId);
-    setRefundMsg("");
-    try {
-      await requestRefund(bountyId, rawAddress);
-      setRefundMsg("Refund initiated — your pool will be returned to your wallet.");
-      // Reload bounties to update the list
-      const updated = await getUserBounties(rawAddress);
-      setAllBounties(updated);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Refund failed. Please try again.";
-      setRefundMsg(msg);
-    } finally {
-      setRefunding(null);
-    }
+  function handleRefund(bountyId: string) {
+    // Navigate to CreatorReviewScreen where the full contract-aware refund flow
+    // lives. Calling requestRefund() directly here would mark the DB as closed
+    // but leave TON locked in the escrow contract if one exists.
+    router.push(`/review/${bountyId}`);
   }
 
   const bounties =
@@ -308,16 +295,6 @@ export function MyBountiesScreen() {
                 </button>
               ))}
             </div>
-
-            {refundMsg && (
-              <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${
-                refundMsg.includes("initiated")
-                  ? "bg-lime-subtle text-lime-dim border border-lime-border"
-                  : "bg-red-50 text-red-600 border border-red-200"
-              }`}>
-                {refundMsg}
-              </div>
-            )}
 
             {loading ? (
               <div className="flex items-center justify-center py-20">
