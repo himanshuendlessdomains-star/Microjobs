@@ -47,7 +47,7 @@ export async function GET(
     };
 
     return NextResponse.json({ bounty: reviewBounty, submissions, approvedCount });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 503 });
+  } catch {
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
   }
 }

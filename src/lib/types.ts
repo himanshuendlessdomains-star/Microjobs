@@ -104,3 +104,10 @@ export interface SwapTokenInfo {
   isNative: boolean;
   jettonAddress?: string;
 }
+
+export interface UserStats {
+  created: number;
+  won: number;
+  earned: string;
+  referrals: number;
+}

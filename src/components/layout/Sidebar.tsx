@@ -10,21 +10,19 @@ import {
   PlusIcon,
 } from "@/components/icons";
 import { cn } from "@/lib/utils";
+import { useNotificationCount } from "@/lib/NotificationContext";
 
 const NAV_LINKS = [
-  { label: "Discover", Icon: CompassIcon, href: "/" },
-  { label: "My Bounties", Icon: ClipboardIcon, href: "/bounties" },
-  { label: "Notifications", Icon: BellIcon, href: "/notifications" },
-  { label: "Profile", Icon: UserIcon, href: "/profile" },
+  { key: "discover",      label: "Discover",       href: "/" },
+  { key: "bounties",      label: "My Bounties",    href: "/bounties" },
+  { key: "notifications", label: "Notifications",  href: "/notifications" },
+  { key: "profile",       label: "Profile",        href: "/profile" },
 ] as const;
 
-/**
- * Sidebar — desktop-only left navigation rail (hidden below md).
- * 240px wide, dark surface, sticky full height.
- */
 export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const { unreadCount } = useNotificationCount();
 
   return (
     <aside
@@ -44,8 +42,14 @@ export function Sidebar() {
 
       {/* Nav links */}
       <nav className="flex-1 px-3 flex flex-col gap-1 mt-6">
-        {NAV_LINKS.map(({ label, Icon, href }) => {
+        {NAV_LINKS.map(({ key, label, href }) => {
           const isActive = pathname === href;
+          const isNotif = key === "notifications";
+          const Icon = key === "discover" ? CompassIcon
+            : key === "bounties" ? ClipboardIcon
+            : key === "notifications" ? BellIcon
+            : UserIcon;
+
           return (
             <button
               key={href}
@@ -57,7 +61,16 @@ export function Sidebar() {
                   : "text-ink-faint hover:text-ink-primary hover:bg-dark-surface"
               )}
             >
-              <Icon active={isActive} />
+              <span className="relative">
+                <Icon active={isActive} {...(isNotif ? { dot: unreadCount > 0 } : {})} />
+                {isNotif && unreadCount > 0 && (
+                  <span
+                    className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center"
+                  >
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </span>
               <span>{label}</span>
             </button>
           );

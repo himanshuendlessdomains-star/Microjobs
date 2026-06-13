@@ -8,13 +8,19 @@ export async function POST(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  // Parse body first — bad JSON deserves a 400, not a 500
+  let body: { creatorAddress: string };
   try {
-    const body = (await request.json()) as { creatorAddress: string };
+    body = (await request.json()) as { creatorAddress: string };
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
-    if (!body.creatorAddress) {
-      return NextResponse.json({ error: "creatorAddress is required" }, { status: 400 });
-    }
+  if (!body.creatorAddress) {
+    return NextResponse.json({ error: "creatorAddress is required" }, { status: 400 });
+  }
 
+  try {
     const supabase = getSupabaseServer();
 
     const { data: bounty } = await supabase
@@ -42,7 +48,7 @@ export async function POST(
       return NextResponse.json({ ok: true, alreadyRefunded: true });
     }
 
-    // Confirm no submissions were approved (nobody won — safe to refund)
+    // Block refund only if winners have been approved — pending/rejected submissions are fine
     const { count: approvedCount } = await supabase
       .from("submissions")
       .select("*", { count: "exact", head: true })
@@ -51,7 +57,7 @@ export async function POST(
 
     if ((approvedCount ?? 0) > 0) {
       return NextResponse.json(
-        { error: "Winners have been selected — cannot refund a bounty with approved submissions." },
+        { error: "Winners have already been selected — cannot refund a bounty with approved submissions." },
         { status: 409 }
       );
     }
@@ -62,7 +68,6 @@ export async function POST(
       .eq("id", params.id);
 
     if (error) {
-      // Check-constraint violation: the DB schema needs a one-time migration.
       if (error.code === PG_CHECK_VIOLATION || error.message?.includes("bounties_status_check")) {
         return NextResponse.json(
           {
@@ -79,18 +84,18 @@ export async function POST(
       return NextResponse.json({ error: "Failed to process refund" }, { status: 500 });
     }
 
-    // Notify the creator that the refund has been initiated (non-blocking)
+    // Notify the creator (non-blocking)
     const poolTon = Number(b.pool_amount).toFixed(2);
     void supabase.from("notifications").insert({
       wallet_address: b.creator_address,
       type: "refund",
       title: "Refund initiated",
-      body: `Your bounty "${b.title}" had no participants. Your pool of ${poolTon} TON has been marked for refund and will be returned to your wallet.`,
+      body: `Your bounty "${b.title}" had no winners selected. Your pool of ${poolTon} TON has been marked for refund and will be returned to your wallet.`,
       read: false,
     });
 
     return NextResponse.json({ ok: true, poolAmount: b.pool_amount });
   } catch {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    return NextResponse.json({ error: "Service error — please try again" }, { status: 500 });
   }
 }

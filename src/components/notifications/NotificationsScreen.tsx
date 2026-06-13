@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CheckCircleIcon, AlarmIcon, FileCheckIcon, ZapIcon, SpinnerIcon } from "@/components/icons";
 import { getNotifications, markAllRead } from "@/lib/api";
 import { useWallet } from "@/hooks/useTonWallet";
+import { useNotificationCount } from "@/lib/NotificationContext";
 import type { AppNotification, NotificationType } from "@/lib/types";
 
 function NotifIcon({ type }: { type: NotificationType }) {
@@ -68,17 +69,26 @@ function EmptyState() {
 
 export function NotificationsScreen() {
   const { isConnected, rawAddress } = useWallet();
+  const { refresh: refreshCount } = useNotificationCount();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const [marking, setMarking] = useState(false);
+
+  function load() {
+    if (!rawAddress) return;
+    setLoading(true);
+    setError(false);
+    getNotifications(rawAddress)
+      .then(setNotifications)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }
 
   useEffect(() => {
     if (!isConnected || !rawAddress) return;
-    setLoading(true);
-    getNotifications(rawAddress)
-      .then(setNotifications)
-      .catch(() => setNotifications([]))
-      .finally(() => setLoading(false));
+    load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected, rawAddress]);
 
   const today = notifications.filter((n) => n.isToday);
@@ -91,8 +101,9 @@ export function NotificationsScreen() {
     setMarking(true);
     try {
       await markAllRead(rawAddress);
+      refreshCount();
     } catch {
-      // optimistic update already applied — silent fail
+      // optimistic update already applied
     } finally {
       setMarking(false);
     }
@@ -103,15 +114,25 @@ export function NotificationsScreen() {
       <div className="max-w-2xl mx-auto">
         <header className="flex justify-between items-center">
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Notifications</h1>
-          {hasUnread && !marking && (
-            <button
-              onClick={handleMarkAllRead}
-              className="text-sm text-lime-dim font-semibold press-scale"
-            >
-              Mark all read
-            </button>
-          )}
-          {marking && <SpinnerIcon size={16} color="#8BBD1E" />}
+          <div className="flex items-center gap-3">
+            {hasUnread && !marking && (
+              <button
+                onClick={handleMarkAllRead}
+                className="text-sm text-lime-dim font-semibold press-scale"
+              >
+                Mark all read
+              </button>
+            )}
+            {marking && <SpinnerIcon size={16} color="#8BBD1E" />}
+            {!loading && (
+              <button
+                onClick={load}
+                className="text-sm text-slate-400 font-medium press-scale"
+              >
+                Refresh
+              </button>
+            )}
+          </div>
         </header>
 
         {!isConnected ? (
@@ -129,6 +150,18 @@ export function NotificationsScreen() {
         ) : loading ? (
           <div className="flex items-center justify-center py-20">
             <SpinnerIcon size={28} />
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <p className="text-slate-500 text-sm text-center">
+              Could not load notifications. Check your connection and try again.
+            </p>
+            <button
+              onClick={load}
+              className="text-sm font-semibold text-lime-dim border border-lime-border rounded-xl px-4 py-2 press-scale"
+            >
+              Try again
+            </button>
           </div>
         ) : notifications.length === 0 ? (
           <EmptyState />

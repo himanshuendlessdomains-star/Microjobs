@@ -7,6 +7,7 @@ import type {
   Submission,
   ReviewBounty,
   SubmissionStatus,
+  UserStats,
 } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -121,6 +122,24 @@ export async function requestRefund(
     throw err;
   }
   return res.json() as Promise<{ poolAmount: number }>;
+}
+
+export async function getUserStats(walletAddress: string): Promise<UserStats> {
+  return get<UserStats>(`/api/users/${encodeURIComponent(walletAddress)}/stats`);
+}
+
+export async function trackReferral(
+  referredAddress: string,
+  referrerCode: string
+): Promise<void> {
+  const res = await fetch(`${BASE}/api/referrals/track`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ referredAddress, referrerCode }),
+  });
+  if (!res.ok && res.status !== 422) {
+    throw new Error(`API ${res.status}`);
+  }
 }
 
 export async function submitProof(

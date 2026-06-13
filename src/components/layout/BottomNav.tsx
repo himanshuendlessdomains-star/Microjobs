@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from "next/navigation";
 import { CompassIcon, ClipboardIcon, BellIcon, UserIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
+import { useNotificationCount } from "@/lib/NotificationContext";
 
 const TABS = [
   { key: "discover",      label: "Discover",      Icon: CompassIcon,   href: "/" },
@@ -19,6 +20,7 @@ const TABS = [
 export function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const { unreadCount } = useNotificationCount();
 
   return (
     <nav
@@ -49,7 +51,7 @@ export function BottomNav() {
             <span className={cn(!isActive && "opacity-50")}>
               <Icon
                 active={isActive}
-                {...(key === "notifications" ? { dot: isActive } : {})}
+                {...(key === "notifications" ? { dot: unreadCount > 0 } : {})}
               />
             </span>
             <span

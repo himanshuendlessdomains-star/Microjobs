@@ -277,8 +277,8 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
   const canApprove = bounty ? approvedCount < bounty.winnerCount : false;
   const canFinalize = approvedCount > 0 && !isClosed;
   const allSlotsReady = bounty ? approvedCount >= bounty.winnerCount : false;
-  // Refund eligible when: no winners selected, bounty isn't already closed/refunded, creator connected
-  const canRefund = !isClosed && approvedCount === 0 && submissions.length === 0 && !!rawAddress;
+  // Refund eligible when: no winners approved, bounty isn't already closed/refunded, creator connected
+  const canRefund = !isClosed && approvedCount === 0 && !!rawAddress;
   const BountyIcon = bounty ? ICON_MAP[bounty.icon] : null;
 
   const distributeLabel = (() => {
@@ -461,19 +461,23 @@ export function CreatorReviewScreen({ bountyId }: { bountyId: string }) {
               </div>
             )}
 
-            {/* Refund claim — shown when bounty has no participation and no winners */}
+            {/* Refund claim — shown when no winners have been approved */}
             {canRefund && (
               <div className="mb-4">
                 <div className="bg-white rounded-2xl border border-surface-border shadow-sm p-5 mb-3">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z" fill="#3B82F6" />
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" fill="#3B82F6" />
                       </svg>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">No one participated</p>
-                      <p className="text-xs text-slate-500 mt-0.5">Claim back your full bounty pool since there were no submissions.</p>
+                      <p className="text-sm font-semibold text-slate-900">No winners selected</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {submissions.length === 0
+                          ? "No one submitted. Claim back your full bounty pool."
+                          : `${submissions.length} submission${submissions.length !== 1 ? "s" : ""} received but no winners approved. You can still claim a refund.`}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between bg-surface-tint rounded-xl px-4 py-3">
